@@ -1,0 +1,38 @@
+{
+  "name": "nspt",
+  "version": "1.0.0",
+  "description": "a secure way to share secrets among trusted peers",
+  "keywords": [
+    "nspt"
+  ],
+  "contributors": [
+    "Ashim Parajuli <https://github.com/ashimparajuli04>",
+    "Amezan Adhikari <https://github.com/Amezan-Adhikari>"
+  ],
+  "homepage": "https://github.com/ashimparajuli04/nspt#readme",
+  "bugs": {
+    "url": "https://github.com/ashimparajuli04/nspt/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ashimparajuli04/nspt.git"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "nspt": "./dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "tsx": "^4.23.11",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "age-encryption": "^0.3.0",
+    "commander": "^15.0.0"
+  }
+}

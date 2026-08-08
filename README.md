@@ -1,44 +1,50 @@
-# Envoo 🌱
+# nspt 🍐
 
-Secure, versioned `.env` sync for teams. No more sharing secrets over chat apps or email.
+Secure, serverless `.env` sync for teams — built on Git.
 
-## The problem
+No backend, no accounts. Your Git repo is the transport layer, and encryption happens entirely on your machine using your GitHub SSH key.
 
-Environment files get passed around in Slack, Discord, WhatsApp, or email. Over time you end up with multiple stale copies, missing variables, and no idea which version is actually current.
+## How it works 🌱
 
-## What Envoo does
+- Create a group with `nspt init`.
+- Add teammates with their GitHub username — their public key is fetched automatically.
+- Push encrypted `.env` files alongside your normal `git push`.
+- Teammates run `nspt sync <group>` after a `git pull` to decrypt and apply the latest files.
 
-Envoo gives your team a centralized, encrypted place to store and sync `.env` files — right from the CLI.
+Only people you've explicitly added can decrypt anything. Not even the Git host can read the contents.
 
-- **Encrypted** — secrets are encrypted before they ever leave your machine.
-- **Simple** — a Git-like workflow your team already knows.
+## Install
+
+```bash
+npm install -g nspt
+```
 
 ## Quickstart
 
 ```bash
-# install
-npm install -g envoo
+nspt init
+# enter group name: patan
 
-# inside your project's git repo
-envoo init
+nspt add alice04
+# fetches alice04's GitHub public key, grants her access
 
-# push your local .env to the team
-envoo push
+nspt push
+# encrypts tracked files, writes them into ./nspt/patan/encfiles
 
-# pull the latest .env
-envoo pull
+git add . && git commit -m "sync patan" && git push
 ```
 
-## Core commands
+Teammate's side:
 
-| Command | Description |
-|---|---|
-| `envoo init` | Link the local repo to a remote Envoo project |
-| `envoo push` | Upload your local `.env` |
-| `envoo pull` | Fetch and apply the latest `.env` |
-
-Versioning, diffing, and history are on the roadmap — not yet implemented.
+```bash
+git pull
+nspt sync patan
+```
 
 ## Status
 
 🚧 Early development — not yet ready for production use.
+
+## License
+
+MIT
