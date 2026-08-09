@@ -7,6 +7,7 @@ import { runInit } from "./flows/init_flow.js";
 import init from "./commands/init.js";
 import { runCreateGroup } from "./flows/create_group_flow.js";
 import createGroup from "./commands/create-group.js";
+import track from "./commands/track.js";
 
 
 const program = new Command();
@@ -19,6 +20,16 @@ program
 
 init(program);
 createGroup(program);
+track(program);
+
+program.hook("preAction", (_thisCommand, actionCommand) => {
+  const name = actionCommand.name();
+  if (name === "init" || name === program.name()) return;
+  if (!fs.existsSync(path.join(process.cwd(), "nspt"))) {
+    p.log.error("nspt not initialized. Run 'nspt init' first.");
+    process.exit(1);
+  }
+});
 
 
 program.action(async () => {
