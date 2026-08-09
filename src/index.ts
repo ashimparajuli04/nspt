@@ -3,9 +3,10 @@ import { Command } from "commander";
 import * as p from "@clack/prompts";
 import * as fs from "node:fs";
 import path from "node:path";
-import { runInit } from "./core/flow/init_flow.js";
+import { runInit } from "./flows/init_flow.js";
 import init from "./commands/init.js";
-import { runCreateGroup } from "./core/flow/create_group_flow.js";
+import { runCreateGroup } from "./flows/create_group_flow.js";
+import createGroup from "./commands/create-group.js";
 
 
 const program = new Command();
@@ -13,9 +14,12 @@ const program = new Command();
 program
   .name("nspt")
   .description("Secure, serverless .env sync for teams")
-  .version("0.0.1");
+  .version("0.0.1")
+  .showHelpAfterError();
 
 init(program);
+createGroup(program);
+
 
 program.action(async () => {
   p.intro("Welcome to nspt")
@@ -35,18 +39,20 @@ program.action(async () => {
     p.cancel("Cancelled.");
     process.exit(0);
   }
-  
-  if (action === "initialize") {
-    await runInit();
-  }
 
-  if (action === "quit") {
-    p.outro("Goodbye!");
-    process.exit(0);
-  }
-
-  if (action === "create_group") {
-    await runCreateGroup();
+  switch (action) {
+    case "initialize":
+      await runInit();
+      break;
+    case "create_group":
+      await runCreateGroup();
+      break;
+    case "quit":
+      p.outro("Goodbye!");
+      process.exit(0);
+    default:
+      p.cancel("Unknown action.");
+      process.exit(1);
   }
 });
 

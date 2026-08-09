@@ -1,19 +1,20 @@
-// src/core/identity.ts
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 
 const execFileAsync = promisify(execFile);
 
-const SSH_ARGS = [
-  "-o", "BatchMode=yes",
-  "-o", "ConnectTimeout=5",
-  "-o", "StrictHostKeyChecking=no",
-  "-o", "UserKnownHostsFile=/dev/null",
-  "-T", "git@github.com",
-];
+// GitHub's official SSH host keys, verified against their published fingerprints:
+//   RSA     SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s
+//   ECDSA   SHA256:p2QAMXNIC1TJYWeIOttrVc98/R1BUFWu3/LiyKgUfQM
+//   ED25519 SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU
+const GITHUB_HOST_KEYS = [
+  "github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=",
+  "github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=",
+  "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl",
+].join("\n");
 
 const IDENTITY_PATH = path.join(homedir(), ".config", "nspt", "identity.json");
 
@@ -23,27 +24,32 @@ interface Identity {
 
 // --- detection strategies ---
 
+function sshArgs(knownHostsFile: string): string[] {
+  return [
+    "-o", "BatchMode=yes",
+    "-o", "ConnectTimeout=5",
+    "-o", "StrictHostKeyChecking=yes",
+    "-o", `UserKnownHostsFile=${knownHostsFile}`,
+    "-T", "git@github.com",
+  ];
+}
+
 async function fromSshBanner(): Promise<string | null> {
+  const knownHostsFile = path.join(tmpdir(), `nspt-github-known_hosts-${process.pid}`);
+  fs.writeFileSync(knownHostsFile, GITHUB_HOST_KEYS);
   try {
-    const { stderr } = await execFileAsync("ssh", SSH_ARGS, { timeout: 10_000 });
+    const { stderr } = await execFileAsync("ssh", sshArgs(knownHostsFile), { timeout: 10_000 });
     return parseBanner(stderr);
   } catch (err) {
     return parseBanner((err as { stderr?: string }).stderr ?? "");
+  } finally {
+    fs.rmSync(knownHostsFile, { force: true });
   }
 }
 
 function parseBanner(output: string): string | null {
-  const match = output.match(/Hi (\w+)! You've successfully authenticated/);
+  const match = output.match(/Hi (\S+)! You've successfully authenticated/);
   return match?.[1] ?? null;
-}
-
-// --- github verification ---
-
-async function fetchGithubKeys(username: string): Promise<string[]> {
-  const res = await fetch(`https://github.com/${username}.keys`);
-  if (!res.ok) throw new Error(`Couldn't fetch keys for ${username}`);
-  const text = await res.text();
-  return text.trim().split("\n").filter(Boolean);
 }
 
 // --- local cache ---
@@ -62,38 +68,17 @@ function saveIdentity(username: string): void {
   fs.writeFileSync(IDENTITY_PATH, JSON.stringify({ githubUsername: username }, null, 2));
 }
 
-// --- public entry point ---
+// --- public entry points ---
 
-export async function getVerifiedUsername(
-  promptForUsername: () => Promise<string>
-): Promise<string> {
-  // 1. Try asking GitHub directly via SSH — most trustworthy, one round trip
+export function getCachedUsername(): string | null {
+  return readCachedIdentity()?.githubUsername ?? null;
+}
+
+export async function getVerifiedUsername(): Promise<string | null> {
   const detected = await fromSshBanner();
   if (detected) {
-    saveIdentity(detected); // keep cache in sync for future fast paths / offline use
+    saveIdentity(detected);
     return detected;
   }
-
-  // 2. Fall back to a cached identity, but only trust it if still consistent
-  const cached = readCachedIdentity();
-  if (cached) {
-    try {
-      const githubKeys = await fetchGithubKeys(cached.githubUsername);
-      // if SSH banner failed but we can still verify via HTTP fetch, trust the cache
-      if (githubKeys.length > 0) {
-        return cached.githubUsername;
-      }
-    } catch {
-      // fetch failed too (offline?) — fall through to manual prompt
-    }
-  }
-
-  // 3. Last resort — ask the user, then verify before trusting it
-  const username = await promptForUsername();
-  const githubKeys = await fetchGithubKeys(username);
-  if (githubKeys.length === 0) {
-    throw new Error(`No public keys found for github.com/${username}`);
-  }
-  saveIdentity(username);
-  return username;
+  return null;
 }
