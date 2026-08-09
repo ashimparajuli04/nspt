@@ -6,7 +6,8 @@ export default function createGroup(program: Command) {
   program
     .command("create-group <name>")
     .description("Create a new group")
-    .action((name: string) => {
-      runCreateGroup(name);
+    .action(async (name: string) => {
+      const result = await runCreateGroup(name);
+      if (result === "error") process.exit(1);
     });
 }

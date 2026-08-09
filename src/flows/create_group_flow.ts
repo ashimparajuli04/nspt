@@ -3,7 +3,9 @@ import * as path from "path";
 import * as p from "@clack/prompts";
 import { createFolder, createGroupConfig } from "../core/files.js";
 
-export async function runCreateGroup(groupName?: string) {
+export type CreateGroupResult = "created" | "cancelled" | "error";
+
+export async function runCreateGroup(groupName?: string): Promise<CreateGroupResult> {
   if (!groupName || !groupName.trim()) {
     const value = await p.text({
       message: "Enter a name for your group:",
@@ -18,7 +20,7 @@ export async function runCreateGroup(groupName?: string) {
 
     if (p.isCancel(value)) {
       p.cancel("Cancelled.");
-      process.exit(0);
+      return "cancelled";
     }
 
     groupName = value;
@@ -28,7 +30,7 @@ export async function runCreateGroup(groupName?: string) {
 
   if (fs.existsSync(groupPath)) {
     p.log.error(`Group "${groupName}" already exists`);
-    return;
+    return "error";
   }
 
   try {
@@ -36,7 +38,9 @@ export async function runCreateGroup(groupName?: string) {
     createFolder(path.join(groupPath, "encfiles"));
     createGroupConfig(groupPath, groupName);
     p.log.success(`Created ${groupPath}`);
+    return "created";
   } catch (err) {
     p.log.error(`Failed to initialize group: ${(err as Error).message}`);
+    return "error";
   }
 }

@@ -33,6 +33,16 @@ export function createFolder(folderPath: string): void {
   fs.mkdirSync(folderPath, { recursive: true });
 }
 
+export function listGroups(): string[] {
+  const root = path.join(process.cwd(), "nspt");
+  if (!fs.existsSync(root)) return [];
+  return fs
+    .readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+}
+
 export function createGroupConfig(groupPath: string, groupName: string): void {
   const configPath = path.join(groupPath, "config.toml");
 

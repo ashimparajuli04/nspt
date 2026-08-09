@@ -23,3 +23,7 @@ path = "./src/.env"
 [[files]]
 name = "src-core-env-b99b7057"
 path = "src/core/.env"
+
+[[files]]
+name = "home-ashim-programming-nspt-src-e1dfcb68"
+path = "/home/ashim/Programming/nspt/src"
