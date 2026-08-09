@@ -1,10 +1,13 @@
 import type { Command } from "commander";
+import { randomBytes } from "node:crypto";
 
 export default function init(program: Command) {
   program
     .command("init")
     .description("Initialize a new nspt group")
     .action(() => {
-      console.log("hello");
+      // const key = randomBytes(32).toString("hex")
+      // console.log(key)
+      
     });
 }
