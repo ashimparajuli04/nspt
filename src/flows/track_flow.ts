@@ -39,6 +39,7 @@ export async function runTrack(groupName?: string, filepath?: string): Promise<T
       validate: (input: string | undefined) => {
         if (!input || !input.trim()) return "Filepath can't be empty";
         if (!fs.existsSync(input.trim())) return "File doesn't exist";
+        if (fs.statSync(input.trim()).isDirectory()) return "That's a directory — pick a file";
       },
     });
 
@@ -52,6 +53,11 @@ export async function runTrack(groupName?: string, filepath?: string): Promise<T
 
   if (!fs.existsSync(filepath)) {
     p.log.error(`File "${filepath}" doesn't exist.`);
+    return "error";
+  }
+
+  if (fs.statSync(filepath).isDirectory()) {
+    p.log.error(`"${filepath}" is a directory. Only files can be tracked.`);
     return "error";
   }
 

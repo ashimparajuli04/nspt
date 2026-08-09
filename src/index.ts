@@ -7,9 +7,9 @@ import { runInit } from "./flows/init_flow.js";
 import init from "./commands/init.js";
 import { runCreateGroup } from "./flows/create_group_flow.js";
 import { runTrack } from "./flows/track_flow.js";
+import { pressAnyKey } from "./core/press_any_key.js";
 import createGroup from "./commands/create-group.js";
 import track from "./commands/track.js";
-
 
 const program = new Command();
 
@@ -32,7 +32,6 @@ program.hook("preAction", (_thisCommand, actionCommand) => {
   }
 });
 
-
 program.action(async () => {
   p.intro("Welcome to nspt");
   while (true) {
@@ -40,7 +39,15 @@ program.action(async () => {
 
     const action = await p.select({
       message: "What would you like to do?",
-      options: [...(initialized ? [{ value: "create_group", label: "Create a new group" }, { value: "track", label: "Track a file" }] : [{ value: "initialize", label: "Initialize nspt in this directory" }]),
+      options: [
+        ...(initialized
+          ? [
+              { value: "track", label: "Track a file" },
+              { value: "create_group", label: "Create a new group" },
+            ]
+          : [
+              { value: "initialize", label: "Initialize nspt in this directory" },
+            ]),
         { value: "quit", label: "Quit" },
       ],
     });
@@ -67,6 +74,8 @@ program.action(async () => {
         p.cancel("Unknown action.");
         process.exit(1);
     }
+
+    await pressAnyKey();
   }
 });
 

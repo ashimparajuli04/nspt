@@ -15,5 +15,5 @@ export async function runInit(): Promise<void> {
   s.stop(displayName ? `Hi ${displayName}!` : "Hi there!");
 
   createFolder(path.join(process.cwd(), "nspt"));
-  runCreateGroup()
+  await runCreateGroup();
 }
