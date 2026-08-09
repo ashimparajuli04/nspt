@@ -38,6 +38,9 @@ export function createGroupConfig(groupPath: string, groupName: string): void {
 }
 
 export function createGroupStructure(groupPath: string, groupName: string): void {
+  if (fs.existsSync(groupPath)) {
+    throw new Error(`Group "${groupName}" already exists`);
+  }
   createFolder(groupPath);
   createFolder(path.join(groupPath, "encfiles"));
   createGroupConfig(groupPath, groupName);
