@@ -33,7 +33,9 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@clack/prompts": "^1.7.0",
     "age-encryption": "^0.3.0",
-    "commander": "^15.0.0"
+    "commander": "^15.0.0",
+    "smol-toml": "^1.7.1"
   }
 }
