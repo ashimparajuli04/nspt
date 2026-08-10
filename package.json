@@ -19,9 +19,11 @@
   },
   "license": "MIT",
   "type": "module",
-  "main": "index.js",
+  "main": "./dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "tsx --test \"src/test/**/*.test.ts\"",
     "dev": "tsx src/index.ts"
   },
   "bin": {
@@ -34,7 +36,10 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.7.0",
+    "@noble/hashes": "^2.0.1",
+    "@scure/base": "^2.0.0",
     "age-encryption": "^0.3.0",
+    "bcrypt-pbkdf": "^1.0.2",
     "commander": "^15.0.0",
     "smol-toml": "^1.7.1"
   }

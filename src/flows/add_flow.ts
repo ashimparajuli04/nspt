@@ -2,10 +2,13 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as p from "@clack/prompts";
 import { unwrapGroupKey } from "../core/unwrap.js";
-import { generateAgeIdentity, sealToFileKey } from "../core/age_keys.js";
+import { sealToFileKey } from "../core/age_keys.js";
 import { fetchUserKeys, GithubRateLimitError } from "../core/github.js";
 import { readUserKeys, writeUserKeys, addUserKey } from "../core/user_keys.js";
 import { listGroups } from "../core/files.js";
+import { sshPubLineToRecipient } from "../core/ssh_to_age.js";
+import { localKeyUnlockHint } from "../core/ssh_keys.js";
+import { passphraseProvider } from "./passphrase.js";
 
 export type AddResult = "added" | "cancelled" | "error";
 
@@ -45,10 +48,15 @@ export async function runAdd(
   const s = p.spinner();
   s.start("Unwrapping group key...");
 
-  const fileKey = await unwrapGroupKey(groupName);
+  const fileKey = await unwrapGroupKey(groupName, { getPassphrase: passphraseProvider(s) });
   if (!fileKey) {
     s.stop("Failed");
-    p.log.error("Could not unwrap group key. Only members can add users.");
+    const hint = await localKeyUnlockHint();
+    p.log.error(
+      hint
+        ? `Could not unwrap group key.\n${hint}`
+        : "Could not unwrap group key. Only members can add users."
+    );
     return "error";
   }
 
@@ -76,33 +84,32 @@ export async function runAdd(
 
   s.clear();
 
-  s.start("Generating age identity for invitee...");
-  const ageIdentity = await generateAgeIdentity();
-  const wrappedResults = await sealToFileKey(fileKey, [ageIdentity.recipient]);
-  const wrapped = wrappedResults[0];
-  if (!wrapped) {
-    s.stop("Failed");
-    p.log.error("Failed to seal file key");
-    return "error";
-  }
-  s.clear();
-
   const userKeys = readUserKeys(groupPath);
   if (!userKeys) {
     p.log.error("Could not read user_keys.toml");
     return "error";
   }
 
-  const sshDisplay = ed25519Keys[0]?.key ?? "ssh-ed25519 (local)";
+  s.start("Sealing group key to invitee's SSH keys...");
+  let added = 0;
+  for (const ghKey of ed25519Keys) {
+    const recipient = sshPubLineToRecipient(ghKey.key);
+    if (!recipient) continue;
+    const wrappedResults = await sealToFileKey(fileKey, [recipient]);
+    const wrapped = wrappedResults[0];
+    if (!wrapped) continue;
+    if (addUserKey(userKeys, inviteeUsername, {
+      age: recipient,
+      ssh: ghKey.key,
+      wrapped,
+    })) {
+      added++;
+    }
+  }
+  s.clear();
 
-  const added = addUserKey(userKeys, inviteeUsername, {
-    age: ageIdentity.recipient,
-    ssh: sshDisplay,
-    wrapped,
-  });
-
-  if (!added) {
-    p.log.warn("User already has this key. Nothing to add.");
+  if (added === 0) {
+    p.log.warn("User already has these keys. Nothing to add.");
     return "added";
   }
 
