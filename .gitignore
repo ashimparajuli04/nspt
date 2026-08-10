@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+#nspt
+nspt/
+
 # Build output
 dist/
 

@@ -16,7 +16,7 @@ const program = new Command();
 program
   .name("nspt")
   .description("Secure, serverless .env sync for teams")
-  .version("0.0.1")
+  .version("1.0.0")
   .showHelpAfterError();
 
 init(program);
