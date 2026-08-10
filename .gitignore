@@ -1,12 +1,9 @@
 # Dependencies
 node_modules/
 
-#nspt
-nspt/
 plan.md
 # Build output
 dist/
-nspt/
 
 # Env / secrets
 .env
