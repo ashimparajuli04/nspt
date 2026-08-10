@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as p from "@clack/prompts";
-import { addFileToGroupConfig, deriveName, listGroups } from "../core/files.js";
+import { addFileToGroupConfig, deriveName, isPathWithinRoot, listGroups } from "../core/files.js";
 import { pickFile } from "../core/file_picker.js";
 
 export type TrackResult = "tracked" | "cancelled" | "error";
@@ -51,6 +51,11 @@ export async function runTrack(groupName?: string, filepath?: string): Promise<T
 
   if (fs.statSync(filepath).isDirectory()) {
     p.log.error(`"${filepath}" is a directory. Only files can be tracked.`);
+    return "error";
+  }
+
+  if (!isPathWithinRoot(filepath)) {
+    p.log.error(`"${filepath}" is outside this repo. Only files inside the repo can be tracked.`);
     return "error";
   }
 

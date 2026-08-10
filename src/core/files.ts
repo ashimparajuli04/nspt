@@ -68,6 +68,13 @@ function canonicalizePath(filePath: string): string {
   return stack.join("/");
 }
 
+export function isPathWithinRoot(filePath: string): boolean {
+  const root = path.resolve(process.cwd());
+  const target = path.resolve(root, filePath);
+  if (target === root) return false;
+  return target.startsWith(root + path.sep);
+}
+
 export function deriveName(filePath: string): string {
   const canonical = canonicalizePath(filePath);
   const readable = canonical

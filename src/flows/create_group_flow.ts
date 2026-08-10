@@ -12,13 +12,24 @@ import { writeUserKeys } from "../core/user_keys.js";
 
 export type CreateGroupResult = "created" | "cancelled" | "error";
 
+function validateGroupName(name: string): string | null {
+  if (!name.trim()) return "Group name can't be empty";
+  if (name.includes("/") || name.includes("\\")) {
+    return "Group name can't contain '/' or '\\'";
+  }
+  if (name.includes("..")) return "Group name can't contain '..'";
+  return null;
+}
+
 export async function runCreateGroup(groupName?: string): Promise<CreateGroupResult> {
   if (!groupName || !groupName.trim()) {
     const value = await p.text({
       message: "Enter a name for your group:",
       placeholder: "e.g. ilovenspt",
       validate: (value: string | undefined) => {
-        if (!value || !value.trim()) return "Group name can't be empty";
+        if (!value) return "Group name can't be empty";
+        const error = validateGroupName(value.trim());
+        if (error) return error;
         if (fs.existsSync(path.join(process.cwd(), "nspt", value.trim()))) {
           return "Group already exists, please pick another name";
         }
@@ -30,7 +41,13 @@ export async function runCreateGroup(groupName?: string): Promise<CreateGroupRes
       return "cancelled";
     }
 
-    groupName = value;
+    groupName = value.trim();
+  }
+
+  const error = validateGroupName(groupName);
+  if (error) {
+    p.log.error(error);
+    return "error";
   }
 
   const groupPath = path.join(process.cwd(), "nspt", groupName);

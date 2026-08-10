@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import * as toml from "smol-toml";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { isPathWithinRoot } from "./files.js";
 
 export function generateKey() {
   const key = randomBytes(32);
@@ -18,6 +19,9 @@ export function encryptAllTrackedFiles(key: string, groupName: string) {
 }
 
 export function encryptFile(key: Buffer, groupName: string, file: { name: string; path: string }) {
+  if (!isPathWithinRoot(file.path)) {
+    throw new Error(`Path "${file.path}" is outside the repo root and can't be encrypted`);
+  }
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
   let plaintext: Buffer;
@@ -54,6 +58,9 @@ export function decryptAllFiles(key: string, groupName: string) {
 }
 
 export function decryptFile(key: Buffer, groupName: string, file: { name: string; path: string }) {
+  if (!isPathWithinRoot(file.path)) {
+    throw new Error(`Path "${file.path}" is outside the repo root and can't be decrypted to`);
+  }
   const encPath = path.join(process.cwd(), "nspt", groupName, "encfiles", `${file.name}.enc`);
   let data: Buffer;
   try {
