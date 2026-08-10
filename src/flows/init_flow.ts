@@ -10,7 +10,7 @@ export async function runInit(): Promise<void> {
   s.start("Checking your GitHub identity...");
 
   const username = await getVerifiedUsername();
-  const displayName = username ?? getCachedUsername();
+  const displayName = username;
 
   s.stop(displayName ? `Hi ${displayName}!` : "Hi there!");
 

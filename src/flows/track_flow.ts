@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as p from "@clack/prompts";
 import { addFileToGroupConfig, deriveName, listGroups } from "../core/files.js";
+import { pickFile } from "../core/file_picker.js";
 
 export type TrackResult = "tracked" | "cancelled" | "error";
 
@@ -33,17 +34,9 @@ export async function runTrack(groupName?: string, filepath?: string): Promise<T
   }
 
   if (!filepath || !filepath.trim()) {
-    const value = await p.path({
-      message: `Select a file to track in ${groupName}:`,
-      directory: false,
-      validate: (input: string | undefined) => {
-        if (!input || !input.trim()) return "Filepath can't be empty";
-        if (!fs.existsSync(input.trim())) return "File doesn't exist";
-        if (fs.statSync(input.trim()).isDirectory()) return "That's a directory — pick a file";
-      },
-    });
+    const value = await pickFile();
 
-    if (p.isCancel(value)) {
+    if (value === null) {
       p.cancel("Cancelled.");
       return "cancelled";
     }
