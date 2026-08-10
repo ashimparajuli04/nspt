@@ -82,8 +82,6 @@ export async function runCreateGroup(groupName?: string): Promise<CreateGroupRes
     });
 
     p.log.success(`Created group "${groupName}"`);
-    p.log.info(`File key (hex, memory only): ${fileKey}`);
-    p.log.warn("File key is NOT stored on disk. Re-run sync-up to regenerate if lost.");
     return "created";
   } catch (err) {
     s.stop("Failed");

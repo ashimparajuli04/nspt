@@ -21,7 +21,7 @@ export async function runInit(): Promise<void> {
     return;
   }
 
-  s.stop(`Authenticated as ${result.username} (${result.githubEd25519Count} ed25519 key(s) on GitHub)`);
+  s.stop(`Authenticated as ${result.username}`);
 
   createFolder(path.join(process.cwd(), "nspt"));
   await runCreateGroup();
