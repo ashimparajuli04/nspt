@@ -20,6 +20,10 @@
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "!dist/test"
+  ],
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build",
@@ -27,7 +31,7 @@
     "dev": "tsx src/index.ts"
   },
   "bin": {
-    "nspt": "./dist/index.js"
+    "nspt": "dist/index.js"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
