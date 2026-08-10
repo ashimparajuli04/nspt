@@ -1,18 +1,27 @@
-import { getVerifiedUsername, getCachedUsername } from "../core/identity.js";
+import { runPreflight } from "../core/preflight.js";
 import { createFolder } from "../core/files.js";
 import * as p from "@clack/prompts";
 import path from "node:path";
 import { runCreateGroup } from "./create_group_flow.js";
 
-
 export async function runInit(): Promise<void> {
   const s = p.spinner();
-  s.start("Checking your GitHub identity...");
+  s.start("Verifying identity and keys...");
 
-  const username = await getVerifiedUsername();
-  const displayName = username;
+  const result = await runPreflight();
 
-  s.stop(displayName ? `Hi ${displayName}!` : "Hi there!");
+  if (!result) {
+    s.stop("Preflight failed.");
+    p.log.error(
+      "Could not verify identity. Ensure you have:\n" +
+        "  - SSH access to GitHub configured\n" +
+        "  - At least one ssh-ed25519 key on GitHub\n" +
+        "  - A matching local SSH key in ~/.ssh/"
+    );
+    return;
+  }
+
+  s.stop(`Authenticated as ${result.username} (${result.githubEd25519Count} ed25519 key(s) on GitHub)`);
 
   createFolder(path.join(process.cwd(), "nspt"));
   await runCreateGroup();

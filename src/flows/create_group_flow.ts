@@ -1,7 +1,13 @@
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import * as p from "@clack/prompts";
+import { randomBytes } from "node:crypto";
 import { createFolder, createGroupConfig } from "../core/files.js";
+import { generateAgeIdentity, sealToFileKey } from "../core/age_keys.js";
+import { storeIdentity } from "../core/age_store.js";
+import { fetchUserKeys } from "../core/github.js";
+import { discoverLocalKeys } from "../core/ssh_keys.js";
+import { writeUserKeys } from "../core/user_keys.js";
 
 export type CreateGroupResult = "created" | "cancelled" | "error";
 
@@ -33,14 +39,55 @@ export async function runCreateGroup(groupName?: string): Promise<CreateGroupRes
     return "error";
   }
 
+  const s = p.spinner();
+  s.start("Generating age identity...");
+
   try {
+    const ageIdentity = await generateAgeIdentity();
+    const fileKey = randomBytes(32).toString("hex");
+    const wrappedResults = await sealToFileKey(fileKey, [ageIdentity.recipient]);
+    const wrappedForCreator = wrappedResults[0];
+    if (!wrappedForCreator) {
+      s.stop("Failed");
+      p.log.error("Failed to seal file key");
+      return "error";
+    }
+
+    const githubKeys = await fetchUserKeys(/* username from preflight, or current */ "");
+    const ed25519Keys = githubKeys.filter((k) => k.key.startsWith("ssh-ed25519"));
+    const sshDisplay = ed25519Keys[0]?.key ?? "ssh-ed25519 (local)";
+
+    s.stop("Age identity generated");
+
     createFolder(groupPath);
     createFolder(path.join(groupPath, "encfiles"));
     createGroupConfig(groupPath, groupName);
-    p.log.success(`Created ${groupPath}`);
+
+    storeIdentity(groupName, ageIdentity.identity);
+
+    writeUserKeys(groupPath, {
+      key_version: 1,
+      users: [
+        {
+          username: "creator",
+          keys: [
+            {
+              age: ageIdentity.recipient,
+              ssh: sshDisplay,
+              wrapped: wrappedForCreator,
+            },
+          ],
+        },
+      ],
+    });
+
+    p.log.success(`Created group "${groupName}"`);
+    p.log.info(`File key (hex, memory only): ${fileKey}`);
+    p.log.warn("File key is NOT stored on disk. Re-run sync-up to regenerate if lost.");
     return "created";
   } catch (err) {
-    p.log.error(`Failed to initialize group: ${(err as Error).message}`);
+    s.stop("Failed");
+    p.log.error(`Failed to create group: ${(err as Error).message}`);
     return "error";
   }
 }

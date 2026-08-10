@@ -1,5 +1,5 @@
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import * as p from "@clack/prompts";
 import { addFileToGroupConfig, deriveName, listGroups } from "../core/files.js";
 import { pickFile } from "../core/file_picker.js";
