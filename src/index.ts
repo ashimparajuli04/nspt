@@ -10,6 +10,10 @@ import { runTrack } from "./flows/track_flow.js";
 import { pressAnyKey } from "./core/press_any_key.js";
 import createGroup from "./commands/create-group.js";
 import track from "./commands/track.js";
+import syncUp from "./commands/sync-up.js";
+import sync from "./commands/sync.js";
+import add from "./commands/add.js";
+import updateKeys from "./commands/update-keys.js";
 
 const program = new Command();
 
@@ -22,6 +26,10 @@ program
 init(program);
 createGroup(program);
 track(program);
+syncUp(program);
+sync(program);
+add(program);
+updateKeys(program);
 
 program.hook("preAction", (_thisCommand, actionCommand) => {
   const name = actionCommand.name();
@@ -44,6 +52,10 @@ program.action(async () => {
           ? [
               { value: "track", label: "Track a file" },
               { value: "create_group", label: "Create a new group" },
+              { value: "sync_up", label: "Sync up (encrypt)" },
+              { value: "sync", label: "Sync (decrypt)" },
+              { value: "add", label: "Add a user to a group" },
+              { value: "update_keys", label: "Update keys for a group" },
             ]
           : [
               { value: "initialize", label: "Initialize nspt in this directory" },
@@ -67,6 +79,26 @@ program.action(async () => {
       case "track":
         await runTrack();
         break;
+      case "sync_up": {
+        const { runSyncUp } = await import("./flows/sync_up_flow.js");
+        await runSyncUp();
+        break;
+      }
+      case "sync": {
+        const { runSync } = await import("./flows/sync_flow.js");
+        await runSync();
+        break;
+      }
+      case "add": {
+        const { runAdd } = await import("./flows/add_flow.js");
+        await runAdd();
+        break;
+      }
+      case "update_keys": {
+        const { runUpdateKeys } = await import("./flows/update_keys_flow.js");
+        await runUpdateKeys();
+        break;
+      }
       case "quit":
         p.outro("Goodbye!");
         process.exit(0);
