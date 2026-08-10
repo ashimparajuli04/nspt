@@ -6,6 +6,13 @@ const GITHUB_API = "https://api.github.com";
 const CACHE_DIR = path.join(homedir(), ".config", "nspt");
 const KEYS_CACHE_PATH = path.join(CACHE_DIR, "github_keys.json");
 
+export class GithubRateLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GithubRateLimitError";
+  }
+}
+
 export interface GithubKey {
   id: number;
   key: string;
@@ -65,6 +72,14 @@ export async function fetchUserKeys(
     );
 
     if (!res.ok) {
+      if (res.status === 403 || res.status === 429) {
+        const body = await res.text().catch(() => "");
+        if (/rate limit/i.test(body)) {
+          throw new GithubRateLimitError(
+            "GitHub API rate limit exceeded. Try again later, or pass a token for authenticated requests."
+          );
+        }
+      }
       return [];
     }
 

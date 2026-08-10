@@ -3,7 +3,7 @@ import * as path from "node:path";
 import * as p from "@clack/prompts";
 import { unwrapGroupKey } from "../core/unwrap.js";
 import { generateAgeIdentity, sealToFileKey } from "../core/age_keys.js";
-import { fetchUserKeys } from "../core/github.js";
+import { fetchUserKeys, GithubRateLimitError } from "../core/github.js";
 import { readUserKeys, writeUserKeys, addUserKey } from "../core/user_keys.js";
 
 export type AddResult = "added" | "cancelled" | "error";
@@ -51,10 +51,20 @@ export async function runAdd(
     return "error";
   }
 
-  s.stop("Group key unwrapped");
+  s.clear();
 
   s.start(`Fetching GitHub keys for ${inviteeUsername}...`);
-  const githubKeys = await fetchUserKeys(inviteeUsername);
+  let githubKeys;
+  try {
+    githubKeys = await fetchUserKeys(inviteeUsername);
+  } catch (err) {
+    if (err instanceof GithubRateLimitError) {
+      s.stop("Failed");
+      p.log.error(err.message);
+      return "error";
+    }
+    throw err;
+  }
   const ed25519Keys = githubKeys.filter((k) => k.key.startsWith("ssh-ed25519"));
 
   if (ed25519Keys.length === 0) {
@@ -63,7 +73,7 @@ export async function runAdd(
     return "error";
   }
 
-  s.stop(`Found ${ed25519Keys.length} ed25519 key(s)`);
+  s.clear();
 
   s.start("Generating age identity for invitee...");
   const ageIdentity = await generateAgeIdentity();
@@ -74,7 +84,7 @@ export async function runAdd(
     p.log.error("Failed to seal file key");
     return "error";
   }
-  s.stop("Age identity generated");
+  s.clear();
 
   const userKeys = readUserKeys(groupPath);
   if (!userKeys) {
@@ -97,7 +107,6 @@ export async function runAdd(
 
   writeUserKeys(groupPath, userKeys);
   p.log.success(`Added ${inviteeUsername} to group "${groupName}"`);
-  p.log.info(`Their age identity must be saved to their machine at ~/.config/nspt/age/${groupName}/identity`);
   return "added";
 }
 

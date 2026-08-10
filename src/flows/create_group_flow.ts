@@ -7,6 +7,7 @@ import { generateAgeIdentity, sealToFileKey } from "../core/age_keys.js";
 import { storeIdentity } from "../core/age_store.js";
 import { fetchUserKeys } from "../core/github.js";
 import { discoverLocalKeys } from "../core/ssh_keys.js";
+import { getVerifiedUsername } from "../core/identity.js";
 import { writeUserKeys } from "../core/user_keys.js";
 
 export type CreateGroupResult = "created" | "cancelled" | "error";
@@ -53,11 +54,21 @@ export async function runCreateGroup(groupName?: string): Promise<CreateGroupRes
       return "error";
     }
 
-    const githubKeys = await fetchUserKeys(/* username from preflight, or current */ "");
-    const ed25519Keys = githubKeys.filter((k) => k.key.startsWith("ssh-ed25519"));
-    const sshDisplay = ed25519Keys[0]?.key ?? "ssh-ed25519 (local)";
+    const username = (await getVerifiedUsername()) ?? "creator";
 
-    s.stop("Age identity generated");
+    let sshDisplay: string | null = null;
+    try {
+      const githubKeys = await fetchUserKeys(username);
+      sshDisplay = githubKeys.find((k) => k.key.startsWith("ssh-ed25519"))?.key ?? null;
+    } catch {
+      sshDisplay = null;
+    }
+    if (!sshDisplay) {
+      sshDisplay =
+        (await discoverLocalKeys()).find((k) => k.type === "ssh-ed25519")?.key ?? null;
+    }
+
+    s.clear();
 
     createFolder(groupPath);
     createFolder(path.join(groupPath, "encfiles"));
@@ -69,11 +80,11 @@ export async function runCreateGroup(groupName?: string): Promise<CreateGroupRes
       key_version: 1,
       users: [
         {
-          username: "creator",
+          username,
           keys: [
             {
               age: ageIdentity.recipient,
-              ssh: sshDisplay,
+              ssh: sshDisplay ?? "ssh-ed25519 (local)",
               wrapped: wrappedForCreator,
             },
           ],

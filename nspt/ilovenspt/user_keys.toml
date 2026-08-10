@@ -3,17 +3,9 @@
 key_version = 1
 
 [[users]]
-username = "creator"
+username = "ashimparajuli04"
 
 [[users.keys]]
-age = "age14nc5fgpl4hcy5clzxc5y2zuj3zc3kj34j592vdvyw72drczds3ws83xf84"
-ssh = "ssh-ed25519 (local)"
-wrapped = "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBBMDdhWlZhSHo2S0U5anhB\nOHljMjBjVU1LcWx2bHgvM1IrNGFuckxmWTFJCkFYbFhoNk9pWTI1MkoyWW9lYzB1\nMVdrVmplcHRLRUw5bEtsQytjaTZObmsKLS0tIHJFZFVGTFk1OW9pRnY4eWpYcFNo\naEJ3L3E4cTRSOHVwekRVbWtqN0RkSzgKOaEbFWoCQ/UPsGrkcShv6l0N8VXb4rbo\nTNRWMaoTU+vc666iqg0bEIFH5AEhHf6iGiVXPxWPSw3cfr2oRlp97A==\n-----END AGE ENCRYPTED FILE-----\n"
-
-[[users]]
-username = "amezan-adhikari"
-
-[[users.keys]]
-age = "age1z25grw60k5fa8s7e58ech4fj3e5423yg72yu29ju0e3x67cc9gwq8xcc26"
-ssh = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINhv4PaSfHwEzWwX42UbZPTsZZd2Ra+jz6YjpPGN1+x7"
-wrapped = "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBvTmRjd21Obmt3dU1tenVo\nLzlzQXEzTUdtMFZpL1lueUJab045WGRTamtrClFoaUtQT3dPQjBxQ0tPOFVsMDRF\nRm5CenpRM1hLMEJJNzNnaFQ4MGtvelEKLS0tIGlRL3lGdEZRVm1Kc1hreGZTZXEv\ndjZwMXJyVUpUVzVBMlRuN1lCV3VlT1UKTvK9S7EOXUuuSos7VW6oQoAOR6qAiJAj\nHKfgN0Ln7F4YkP2ez0l4iHar9Ik79N43+Dyz/2DvgCAXLQ1S9lEtHw==\n-----END AGE ENCRYPTED FILE-----\n"
+age = "age10apw3u5rg8cvqlwkefg44al7qgy2q2s2pf98exdyt78ek33kvu5qeagzq7"
+ssh = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC2u8OkP5IaRNw6mtUOWJqC1K05nmKrVc9o0xjUI5hDT"
+wrapped = "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSAxdEJ0OWs4VE9Lanl0aEFs\nMnNYZFVqSjgrN0tUQzlaN3hhbUZOSmd1dlNZCnZOWWhNTXlhcFc1SU9vT2dvd0lu\ndmk5RXNscDd3d0U3dEx6NEFNQVJSQU0KLS0tIFhNYklrZXJrT3BBSTRDa2h5NUk1\nZXJkVGIrekd2TUthT3Bub3N6V3plNDgKTnc5UEU1gA7kwx+ZpdVHHzsLurmY66ZH\nIdWaQ9HJC1YbW+RNLnLJs3rTDs/4RTeaPpmiL2STsAAM6Td01aQEww==\n-----END AGE ENCRYPTED FILE-----\n"

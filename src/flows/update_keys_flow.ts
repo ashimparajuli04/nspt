@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as p from "@clack/prompts";
 import { unwrapGroupKey } from "../core/unwrap.js";
-import { fetchUserKeys } from "../core/github.js";
+import { fetchUserKeys, GithubRateLimitError } from "../core/github.js";
 import { readUserKeys, writeUserKeys } from "../core/user_keys.js";
 
 export type UpdateKeysResult = "updated" | "cancelled" | "error";
@@ -38,7 +38,7 @@ export async function runUpdateKeys(groupName?: string): Promise<UpdateKeysResul
     return "error";
   }
 
-  s.stop("Group key unwrapped");
+  s.clear();
 
   const userKeys = readUserKeys(groupPath);
   if (!userKeys) {
@@ -50,7 +50,17 @@ export async function runUpdateKeys(groupName?: string): Promise<UpdateKeysResul
 
   for (const user of userKeys.users) {
     s.start(`Fetching keys for ${user.username}...`);
-    const githubKeys = await fetchUserKeys(user.username);
+    let githubKeys;
+    try {
+      githubKeys = await fetchUserKeys(user.username);
+    } catch (err) {
+      if (err instanceof GithubRateLimitError) {
+        s.stop("Rate limited");
+        p.log.error(err.message);
+        return "error";
+      }
+      throw err;
+    }
     const ed25519Keys = githubKeys.filter((k) => k.key.startsWith("ssh-ed25519"));
     const existingSsh = new Set(user.keys.map((k) => k.ssh));
 

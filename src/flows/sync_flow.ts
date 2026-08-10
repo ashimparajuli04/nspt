@@ -43,7 +43,7 @@ export async function runSync(groupName?: string): Promise<SyncResult> {
     return "error";
   }
 
-  s.stop("Group key unwrapped");
+  s.clear();
 
   s.start("Decrypting files...");
   try {

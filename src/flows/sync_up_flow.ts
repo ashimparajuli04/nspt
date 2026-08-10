@@ -43,7 +43,7 @@ export async function runSyncUp(groupName?: string): Promise<SyncUpResult> {
     return "error";
   }
 
-  s.stop("Group key unwrapped");
+  s.clear();
 
   s.start("Encrypting tracked files...");
   try {
