@@ -2,9 +2,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as p from "@clack/prompts";
 import { unwrapGroupKey } from "../core/unwrap.js";
+import { sealToFileKey } from "../core/age_keys.js";
 import { fetchUserKeys, GithubRateLimitError } from "../core/github.js";
 import { readUserKeys, writeUserKeys } from "../core/user_keys.js";
 import { listGroups } from "../core/files.js";
+import { sshPubLineToRecipient } from "../core/ssh_to_age.js";
+import { localKeyUnlockHint } from "../core/ssh_keys.js";
 
 export type UpdateKeysResult = "updated" | "cancelled" | "error";
 
@@ -35,7 +38,12 @@ export async function runUpdateKeys(groupName?: string): Promise<UpdateKeysResul
   const fileKey = await unwrapGroupKey(groupName);
   if (!fileKey) {
     s.stop("Failed");
-    p.log.error("Could not unwrap group key. Only members can update keys.");
+    const hint = await localKeyUnlockHint();
+    p.log.error(
+      hint
+        ? `Could not unwrap group key.\n${hint}`
+        : "Could not unwrap group key. Only members can update keys."
+    );
     return "error";
   }
 
@@ -68,13 +76,13 @@ export async function runUpdateKeys(groupName?: string): Promise<UpdateKeysResul
     let newKeys = 0;
     for (const ghKey of ed25519Keys) {
       if (!existingSsh.has(ghKey.key)) {
-        const { generateAgeIdentity, sealToFileKey } = await import("../core/age_keys.js");
-        const ageIdentity = await generateAgeIdentity();
-        const wrappedResults = await sealToFileKey(fileKey, [ageIdentity.recipient]);
+        const recipient = sshPubLineToRecipient(ghKey.key);
+        if (!recipient) continue;
+        const wrappedResults = await sealToFileKey(fileKey, [recipient]);
         const wrapped = wrappedResults[0];
         if (!wrapped) continue;
         user.keys.push({
-          age: ageIdentity.recipient,
+          age: recipient,
           ssh: ghKey.key,
           wrapped,
         });

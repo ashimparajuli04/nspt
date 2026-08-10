@@ -9,6 +9,7 @@ import { discoverLocalKeys } from "../core/ssh_keys.js";
 import { getVerifiedUsername } from "../core/identity.js";
 import { writeUserKeys } from "../core/user_keys.js";
 import { generateKey } from "../core/enc_dec_file.js";
+import { sshIdentityFromFile } from "../core/ssh_to_age.js";
 
 export type CreateGroupResult = "created" | "cancelled" | "error";
 
@@ -58,12 +59,47 @@ export async function runCreateGroup(groupName?: string): Promise<CreateGroupRes
   }
 
   const s = p.spinner();
-  s.start("Generating age identity...");
+  s.start("Generating group key...");
 
   try {
-    const ageIdentity = await generateAgeIdentity();
     const fileKey = generateKey();
-    const wrappedResults = await sealToFileKey(fileKey, [ageIdentity.recipient]);
+
+    let recipient: string;
+    let storedIdentity: string | null = null;
+    let sshDisplay: string | null = null;
+
+    const localKeys = await discoverLocalKeys();
+    const localEd = localKeys.find((k) => k.type === "ssh-ed25519");
+
+    if (localEd) {
+      const id = sshIdentityFromFile(localEd.source);
+      if (id) {
+        recipient = id.recipient;
+        sshDisplay = id.pubLine;
+      } else if (localEd.encrypted) {
+        p.log.warn(
+          `Your SSH key "${path.basename(localEd.source)}" is passphrase-protected. ` +
+            "Load it into your agent (ssh-add) or unencrypt it (ssh-keygen -p) and recreate " +
+            "this group so you can sync from any machine. Creating now with a stored age " +
+            "identity that only works on this machine."
+        );
+        const ageIdentity = await generateAgeIdentity();
+        recipient = ageIdentity.recipient;
+        storedIdentity = ageIdentity.identity;
+        sshDisplay = `ssh-ed25519 ${localEd.key}`;
+      } else {
+        const ageIdentity = await generateAgeIdentity();
+        recipient = ageIdentity.recipient;
+        storedIdentity = ageIdentity.identity;
+        sshDisplay = `ssh-ed25519 ${localEd.key}`;
+      }
+    } else {
+      const ageIdentity = await generateAgeIdentity();
+      recipient = ageIdentity.recipient;
+      storedIdentity = ageIdentity.identity;
+    }
+
+    const wrappedResults = await sealToFileKey(fileKey, [recipient]);
     const wrappedForCreator = wrappedResults[0];
     if (!wrappedForCreator) {
       s.stop("Failed");
@@ -73,16 +109,13 @@ export async function runCreateGroup(groupName?: string): Promise<CreateGroupRes
 
     const username = (await getVerifiedUsername()) ?? "creator";
 
-    let sshDisplay: string | null = null;
-    try {
-      const githubKeys = await fetchUserKeys(username);
-      sshDisplay = githubKeys.find((k) => k.key.startsWith("ssh-ed25519"))?.key ?? null;
-    } catch {
-      sshDisplay = null;
-    }
     if (!sshDisplay) {
-      sshDisplay =
-        (await discoverLocalKeys()).find((k) => k.type === "ssh-ed25519")?.key ?? null;
+      try {
+        const githubKeys = await fetchUserKeys(username);
+        sshDisplay = githubKeys.find((k) => k.key.startsWith("ssh-ed25519"))?.key ?? null;
+      } catch {
+        sshDisplay = null;
+      }
     }
 
     s.clear();
@@ -91,7 +124,9 @@ export async function runCreateGroup(groupName?: string): Promise<CreateGroupRes
     createFolder(path.join(groupPath, "encfiles"));
     createGroupConfig(groupPath, groupName);
 
-    storeIdentity(groupName, ageIdentity.identity);
+    if (storedIdentity) {
+      storeIdentity(groupName, storedIdentity);
+    }
 
     writeUserKeys(groupPath, {
       key_version: 1,
@@ -100,7 +135,7 @@ export async function runCreateGroup(groupName?: string): Promise<CreateGroupRes
           username,
           keys: [
             {
-              age: ageIdentity.recipient,
+              age: recipient,
               ssh: sshDisplay ?? "ssh-ed25519 (local)",
               wrapped: wrappedForCreator,
             },

@@ -4,6 +4,7 @@ import * as p from "@clack/prompts";
 import { decryptAllFiles } from "../core/enc_dec_file.js";
 import { unwrapGroupKey } from "../core/unwrap.js";
 import { listGroups } from "../core/files.js";
+import { localKeyUnlockHint } from "../core/ssh_keys.js";
 
 export type SyncResult = "synced" | "cancelled" | "error";
 
@@ -40,7 +41,12 @@ export async function runSync(groupName?: string): Promise<SyncResult> {
   const fileKey = await unwrapGroupKey(groupName);
   if (!fileKey) {
     s.stop("Failed");
-    p.log.error("Could not unwrap group key. Are you a member of this group?");
+    const hint = await localKeyUnlockHint();
+    p.log.error(
+      hint
+        ? `Could not unwrap group key.\n${hint}`
+        : "Could not unwrap group key. Are you a member of this group?"
+    );
     return "error";
   }
 
