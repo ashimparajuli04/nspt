@@ -5,6 +5,7 @@ import { unwrapGroupKey } from "../core/unwrap.js";
 import { generateAgeIdentity, sealToFileKey } from "../core/age_keys.js";
 import { fetchUserKeys, GithubRateLimitError } from "../core/github.js";
 import { readUserKeys, writeUserKeys, addUserKey } from "../core/user_keys.js";
+import { listGroups } from "../core/files.js";
 
 export type AddResult = "added" | "cancelled" | "error";
 
@@ -110,11 +111,3 @@ export async function runAdd(
   return "added";
 }
 
-function listGroups(): string[] {
-  const root = path.join(process.cwd(), "nspt");
-  if (!fs.existsSync(root)) return [];
-  return fs.readdirSync(root, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort();
-}

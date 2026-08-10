@@ -8,7 +8,9 @@ import { runCreateGroup } from "./create_group_flow.js";
 
 const SSH_DIR = path.join(homedir(), ".ssh");
 
-export async function runInit(): Promise<void> {
+export type InitResult = "initialized" | "cancelled" | "error";
+
+export async function runInit(): Promise<InitResult> {
   const s = p.spinner();
   s.start("Verifying identity and keys...");
 
@@ -19,9 +21,11 @@ export async function runInit(): Promise<void> {
     if (err instanceof GithubRateLimitError) {
       s.stop("Rate limited");
       p.log.error(err.message);
-      return;
+      return "error";
     }
-    throw err;
+    s.stop("Failed");
+    p.log.error(`Preflight error: ${(err as Error).message}`);
+    return "error";
   }
 
   if (!result) {
@@ -32,11 +36,14 @@ export async function runInit(): Promise<void> {
         "  - At least one ssh-ed25519 key on GitHub\n" +
         `  - A matching local SSH key in ${SSH_DIR}/`
     );
-    return;
+    return "error";
   }
 
   s.stop(`Authenticated as ${result.username}`);
 
   createFolder(path.join(process.cwd(), "nspt"));
-  await runCreateGroup();
+  const created = await runCreateGroup();
+  if (created === "created") return "initialized";
+  if (created === "cancelled") return "cancelled";
+  return "error";
 }

@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as p from "@clack/prompts";
 import { encryptAllTrackedFiles } from "../core/enc_dec_file.js";
 import { unwrapGroupKey } from "../core/unwrap.js";
+import { listGroups } from "../core/files.js";
 
 export type SyncUpResult = "synced" | "cancelled" | "error";
 
@@ -58,12 +59,3 @@ export async function runSyncUp(groupName?: string): Promise<SyncUpResult> {
   }
 }
 
-function listGroups(): string[] {
-  const root = path.join(process.cwd(), "nspt");
-  if (!fs.existsSync(root)) return [];
-  return fs
-    .readdirSync(root, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
-}

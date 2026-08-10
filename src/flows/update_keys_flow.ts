@@ -4,6 +4,7 @@ import * as p from "@clack/prompts";
 import { unwrapGroupKey } from "../core/unwrap.js";
 import { fetchUserKeys, GithubRateLimitError } from "../core/github.js";
 import { readUserKeys, writeUserKeys } from "../core/user_keys.js";
+import { listGroups } from "../core/files.js";
 
 export type UpdateKeysResult = "updated" | "cancelled" | "error";
 
@@ -94,11 +95,3 @@ export async function runUpdateKeys(groupName?: string): Promise<UpdateKeysResul
   return "updated";
 }
 
-function listGroups(): string[] {
-  const root = path.join(process.cwd(), "nspt");
-  if (!fs.existsSync(root)) return [];
-  return fs.readdirSync(root, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort();
-}

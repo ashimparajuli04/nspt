@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import { runCreateGroup } from "../flows/create_group_flow.js";
+import { runCliAction } from "../core/cli_action.js";
 
 
 export default function createGroup(program: Command) {
@@ -7,7 +8,6 @@ export default function createGroup(program: Command) {
     .command("create-group <name>")
     .description("Create a new group")
     .action(async (name: string) => {
-      const result = await runCreateGroup(name);
-      if (result === "error") process.exit(1);
+      await runCliAction(() => runCreateGroup(name));
     });
 }

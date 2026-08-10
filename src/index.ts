@@ -69,42 +69,46 @@ program.action(async () => {
       process.exit(0);
     }
 
-    switch (action) {
-      case "initialize":
-        await runInit();
-        break;
-      case "create_group":
-        await runCreateGroup();
-        break;
-      case "track":
-        await runTrack();
-        break;
-      case "sync_up": {
-        const { runSyncUp } = await import("./flows/sync_up_flow.js");
-        await runSyncUp();
-        break;
+    try {
+      switch (action) {
+        case "initialize":
+          await runInit();
+          break;
+        case "create_group":
+          await runCreateGroup();
+          break;
+        case "track":
+          await runTrack();
+          break;
+        case "sync_up": {
+          const { runSyncUp } = await import("./flows/sync_up_flow.js");
+          await runSyncUp();
+          break;
+        }
+        case "sync": {
+          const { runSync } = await import("./flows/sync_flow.js");
+          await runSync();
+          break;
+        }
+        case "add": {
+          const { runAdd } = await import("./flows/add_flow.js");
+          await runAdd();
+          break;
+        }
+        case "update_keys": {
+          const { runUpdateKeys } = await import("./flows/update_keys_flow.js");
+          await runUpdateKeys();
+          break;
+        }
+        case "quit":
+          p.outro("Goodbye!");
+          process.exit(0);
+        default:
+          p.cancel("Unknown action.");
+          process.exit(1);
       }
-      case "sync": {
-        const { runSync } = await import("./flows/sync_flow.js");
-        await runSync();
-        break;
-      }
-      case "add": {
-        const { runAdd } = await import("./flows/add_flow.js");
-        await runAdd();
-        break;
-      }
-      case "update_keys": {
-        const { runUpdateKeys } = await import("./flows/update_keys_flow.js");
-        await runUpdateKeys();
-        break;
-      }
-      case "quit":
-        p.outro("Goodbye!");
-        process.exit(0);
-      default:
-        p.cancel("Unknown action.");
-        process.exit(1);
+    } catch (err) {
+      p.log.error(`Unexpected error: ${(err as Error).message}`);
     }
 
     await pressAnyKey();

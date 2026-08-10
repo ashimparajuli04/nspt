@@ -1,7 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as p from "@clack/prompts";
-import { randomBytes } from "node:crypto";
 import { createFolder, createGroupConfig } from "../core/files.js";
 import { generateAgeIdentity, sealToFileKey } from "../core/age_keys.js";
 import { storeIdentity } from "../core/age_store.js";
@@ -9,6 +8,7 @@ import { fetchUserKeys } from "../core/github.js";
 import { discoverLocalKeys } from "../core/ssh_keys.js";
 import { getVerifiedUsername } from "../core/identity.js";
 import { writeUserKeys } from "../core/user_keys.js";
+import { generateKey } from "../core/enc_dec_file.js";
 
 export type CreateGroupResult = "created" | "cancelled" | "error";
 
@@ -62,7 +62,7 @@ export async function runCreateGroup(groupName?: string): Promise<CreateGroupRes
 
   try {
     const ageIdentity = await generateAgeIdentity();
-    const fileKey = randomBytes(32).toString("hex");
+    const fileKey = generateKey();
     const wrappedResults = await sealToFileKey(fileKey, [ageIdentity.recipient]);
     const wrappedForCreator = wrappedResults[0];
     if (!wrappedForCreator) {

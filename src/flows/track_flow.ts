@@ -59,6 +59,8 @@ export async function runTrack(groupName?: string, filepath?: string): Promise<T
     return "error";
   }
 
+  filepath = path.relative(process.cwd(), filepath).split(path.sep).join("/");
+
   const name = deriveName(filepath);
   const added = addFileToGroupConfig(groupName, { name, path: filepath });
 
