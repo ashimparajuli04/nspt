@@ -6,6 +6,7 @@ nspt/
 
 # Build output
 dist/
+nspt/
 
 # Env / secrets
 .env
