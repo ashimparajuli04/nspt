@@ -39,6 +39,7 @@
     "@noble/hashes": "^2.0.1",
     "@scure/base": "^2.0.0",
     "age-encryption": "^0.3.0",
+    "bcrypt-pbkdf": "^1.0.2",
     "commander": "^15.0.0",
     "smol-toml": "^1.7.1"
   }

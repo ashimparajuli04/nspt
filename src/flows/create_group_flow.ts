@@ -10,6 +10,7 @@ import { getVerifiedUsername } from "../core/identity.js";
 import { writeUserKeys } from "../core/user_keys.js";
 import { generateKey } from "../core/enc_dec_file.js";
 import { sshIdentityFromFile } from "../core/ssh_to_age.js";
+import { promptSshIdentity } from "./passphrase.js";
 
 export type CreateGroupResult = "created" | "cancelled" | "error";
 
@@ -77,16 +78,23 @@ export async function runCreateGroup(groupName?: string): Promise<CreateGroupRes
         recipient = id.recipient;
         sshDisplay = id.pubLine;
       } else if (localEd.encrypted) {
-        p.log.warn(
-          `Your SSH key "${path.basename(localEd.source)}" is passphrase-protected. ` +
-            "Load it into your agent (ssh-add) or unencrypt it (ssh-keygen -p) and recreate " +
-            "this group so you can sync from any machine. Creating now with a stored age " +
-            "identity that only works on this machine."
-        );
-        const ageIdentity = await generateAgeIdentity();
-        recipient = ageIdentity.recipient;
-        storedIdentity = ageIdentity.identity;
-        sshDisplay = `ssh-ed25519 ${localEd.key}`;
+        const id = await promptSshIdentity(localEd.source, s);
+        if (id) {
+          recipient = id.recipient;
+          sshDisplay = id.pubLine;
+        } else {
+          p.log.warn(
+            `Your SSH key "${path.basename(localEd.source)}" is passphrase-protected and its ` +
+              "passphrase wasn't provided, so nspt can't derive a portable identity from it. " +
+              "Creating now with a stored age identity that only works on this machine. " +
+              "To sync from any machine, enter the passphrase next time or remove it " +
+              `(ssh-keygen -p -f ${localEd.source}).`
+          );
+          const ageIdentity = await generateAgeIdentity();
+          recipient = ageIdentity.recipient;
+          storedIdentity = ageIdentity.identity;
+          sshDisplay = `ssh-ed25519 ${localEd.key}`;
+        }
       } else {
         const ageIdentity = await generateAgeIdentity();
         recipient = ageIdentity.recipient;

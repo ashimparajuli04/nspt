@@ -3,6 +3,8 @@ import { promisify } from "node:util";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { homedir } from "node:os";
+import { createDecipheriv } from "node:crypto";
+import * as bcryptPbkdf from "bcrypt-pbkdf";
 import { fetchUserKeys } from "./github.js";
 
 const execFileAsync = promisify(execFile);
@@ -119,12 +121,22 @@ export function wireToAuthorizedLine(wire: Uint8Array): string | null {
 
 // --- openssh-key-v1 parsing ---
 
+interface OpenSshContainer {
+  cipher: string;
+  kdf: string;
+  kdfOpts: Buffer;
+  pubWire: Uint8Array;
+  pubBytes: Uint8Array;
+  /** Private section; the bytes are ciphertext when `encrypted` is true. */
+  privBlob: Buffer;
+  encrypted: boolean;
+}
+
 /**
- * Parse an OpenSSH private key from its PEM-like armor text.
- * The embedded public key is always readable, even when the private section
- * is passphrase-encrypted; in that case `seed` is null and `encrypted` is true.
+ * Parse the openssh-key-v1 container. The embedded public key is always
+ * readable, even when the private section is passphrase-encrypted.
  */
-export function parseOpenSshPrivateKey(raw: string): OpenSshPrivateKey | null {
+function parseOpenSshContainer(raw: string): OpenSshContainer | null {
   const lines = raw.split(/\r?\n/);
   const nonEmpty = lines.filter((l) => l.trim().length > 0);
   if (nonEmpty.length === 0) return null;
@@ -160,22 +172,25 @@ export function parseOpenSshPrivateKey(raw: string): OpenSshPrivateKey | null {
   const pubBytes = pubWire ? decodeEd25519Pub(pubWire) : null;
   if (!pubWire || !pubBytes) return null;
 
-  const encrypted = cipher.toString() !== "none" || kdf.toString() !== "none";
-  if (encrypted) {
-    return {
-      seed: null,
-      pubWire: new Uint8Array(pubWire),
-      pubBytes,
-      comment: "",
-      encrypted: true,
-      cipher: cipher.toString(),
-      kdf: kdf.toString(),
-    };
-  }
-
   const privBlob = readSshString(buf, c);
   if (!privBlob) return null;
 
+  return {
+    cipher: cipher.toString(),
+    kdf: kdf.toString(),
+    kdfOpts,
+    pubWire: new Uint8Array(pubWire),
+    pubBytes,
+    privBlob,
+    encrypted: cipher.toString() !== "none" || kdf.toString() !== "none",
+  };
+}
+
+/** Parse a (decrypted) ed25519 private section and validate it against the public key. */
+function parseEd25519PrivBlob(
+  privBlob: Buffer,
+  pubBytes: Uint8Array
+): { seed: Uint8Array; comment: string } | null {
   const pc: Cursor = { off: 0 };
   if (pc.off + 8 > privBlob.length) return null;
   const check1 = privBlob.readUInt32BE(pc.off);
@@ -201,9 +216,34 @@ export function parseOpenSshPrivateKey(raw: string): OpenSshPrivateKey | null {
 
   return {
     seed: new Uint8Array(priv.subarray(0, 32)),
-    pubWire: new Uint8Array(pubWire),
-    pubBytes,
     comment: comment?.toString() ?? "",
+  };
+}
+
+export function parseOpenSshPrivateKey(raw: string): OpenSshPrivateKey | null {
+  const c = parseOpenSshContainer(raw);
+  if (!c) return null;
+
+  if (c.encrypted) {
+    return {
+      seed: null,
+      pubWire: c.pubWire,
+      pubBytes: c.pubBytes,
+      comment: "",
+      encrypted: true,
+      cipher: c.cipher,
+      kdf: c.kdf,
+    };
+  }
+
+  const inner = parseEd25519PrivBlob(c.privBlob, c.pubBytes);
+  if (!inner) return null;
+
+  return {
+    seed: inner.seed,
+    pubWire: c.pubWire,
+    pubBytes: c.pubBytes,
+    comment: inner.comment,
     encrypted: false,
     cipher: "none",
     kdf: "none",
@@ -218,6 +258,72 @@ export function readOpenSshPrivateKey(filePath: string): OpenSshPrivateKey | nul
     return null;
   }
   return parseOpenSshPrivateKey(raw);
+}
+
+/**
+ * Decrypt a passphrase-protected openssh-key-v1 key. Only the standard OpenSSH
+ * scheme is supported: bcrypt_pbkdf key derivation with aes256-ctr. Returns
+ * null when the passphrase is wrong, the format is unsupported, or the key
+ * was never encrypted.
+ */
+export function decryptOpenSshPrivateKey(raw: string, passphrase: string): OpenSshPrivateKey | null {
+  const c = parseOpenSshContainer(raw);
+  if (!c) return null;
+  if (!c.encrypted) return parseOpenSshPrivateKey(raw);
+  if (c.cipher !== "aes256-ctr" || c.kdf !== "bcrypt") return null;
+
+  const ko: Cursor = { off: 0 };
+  const salt = readSshString(c.kdfOpts, ko);
+  if (!salt) return null;
+  if (ko.off + 4 > c.kdfOpts.length) return null;
+  const rounds = c.kdfOpts.readUInt32BE(ko.off);
+
+  const keylen = 48;
+  const derived = Buffer.alloc(keylen);
+  try {
+    bcryptPbkdf.pbkdf(
+      Buffer.from(passphrase),
+      Buffer.byteLength(passphrase),
+      salt,
+      salt.length,
+      derived,
+      keylen,
+      rounds
+    );
+  } catch {
+    return null;
+  }
+
+  let plain: Buffer;
+  try {
+    const decipher = createDecipheriv("aes-256-ctr", derived.subarray(0, 32), derived.subarray(32, 48));
+    plain = Buffer.concat([decipher.update(c.privBlob), decipher.final()]);
+  } catch {
+    return null;
+  }
+
+  const inner = parseEd25519PrivBlob(plain, c.pubBytes);
+  if (!inner) return null;
+
+  return {
+    seed: inner.seed,
+    pubWire: c.pubWire,
+    pubBytes: c.pubBytes,
+    comment: inner.comment,
+    encrypted: false,
+    cipher: "none",
+    kdf: "none",
+  };
+}
+
+export function decryptOpenSshPrivateKeyFile(filePath: string, passphrase: string): OpenSshPrivateKey | null {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(filePath, "utf8");
+  } catch {
+    return null;
+  }
+  return decryptOpenSshPrivateKey(raw, passphrase);
 }
 
 // --- local discovery ---
@@ -270,7 +376,7 @@ function keyFromPubFile(pubPath: string): SshPublicKey | null {
 
 async function agentKeys(): Promise<SshPublicKey[]> {
   const sock = process.env.SSH_AUTH_SOCK;
-  if (!sock || !fs.existsSync(sock)) return [];
+  if (sock && !fs.existsSync(sock)) return [];
   try {
     const { stdout } = await execFileAsync("ssh-add", ["-L"], { timeout: 3000 });
     const out: SshPublicKey[] = [];
@@ -373,10 +479,9 @@ export async function localKeyUnlockHint(): Promise<string | null> {
   const key = encrypted[0]!;
   const name = path.basename(key.source);
   return (
-    `Your SSH key "${name}" is passphrase-protected, so nspt can't unlock it on its own.\n` +
-    `Load it into your agent once:  ssh-add ${key.source}\n` +
-    `or remove the passphrase:       ssh-keygen -p -f ${key.source}\n` +
-    `then try again.`
+    `Your SSH key "${name}" is passphrase-protected.\n` +
+    `Enter its passphrase when nspt prompts you, or remove the passphrase entirely:\n` +
+    `ssh-keygen -p -f ${key.source}`
   );
 }
 

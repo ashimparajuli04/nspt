@@ -5,6 +5,7 @@ import { decryptAllFiles } from "../core/enc_dec_file.js";
 import { unwrapGroupKey } from "../core/unwrap.js";
 import { listGroups } from "../core/files.js";
 import { localKeyUnlockHint } from "../core/ssh_keys.js";
+import { passphraseProvider } from "./passphrase.js";
 
 export type SyncResult = "synced" | "cancelled" | "error";
 
@@ -38,7 +39,7 @@ export async function runSync(groupName?: string): Promise<SyncResult> {
   const s = p.spinner();
   s.start("Unwrapping group key...");
 
-  const fileKey = await unwrapGroupKey(groupName);
+  const fileKey = await unwrapGroupKey(groupName, { getPassphrase: passphraseProvider(s) });
   if (!fileKey) {
     s.stop("Failed");
     const hint = await localKeyUnlockHint();

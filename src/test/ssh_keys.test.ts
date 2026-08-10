@@ -164,7 +164,7 @@ test("discover: finds keys regardless of filename and without a .pub sidecar", a
   try {
     const { seed, pub } = makeKeypair();
     fs.writeFileSync(path.join(dir, "github_deploy_key"), buildOpenSshKey(seed, pub, "deploy"));
-    const keys = await discoverLocalKeys(dir);
+    const keys = (await discoverLocalKeys(dir)).filter((k) => k.source !== "agent");
     assert.equal(keys.length, 1);
     assert.equal(keys[0]!.type, "ssh-ed25519");
     assert.equal(keys[0]!.hasPrivate, true);
@@ -180,7 +180,7 @@ test("discover: a .pub without its private half is not reported as present", asy
   try {
     const { pub } = makeKeypair();
     fs.writeFileSync(path.join(dir, "id_ed25519.pub"), pubLineOf(pub) + "\n");
-    const keys = await discoverLocalKeys(dir);
+    const keys = (await discoverLocalKeys(dir)).filter((k) => k.source !== "agent");
     assert.deepEqual(keys, []);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

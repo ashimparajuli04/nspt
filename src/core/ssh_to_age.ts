@@ -3,6 +3,7 @@ import { bech32 } from "@scure/base";
 import {
   discoverLocalKeys,
   readOpenSshPrivateKey,
+  decryptOpenSshPrivateKeyFile,
   wireToAuthorizedLine,
   decodeEd25519Pub,
   ED25519_KEY_TYPE,
@@ -104,4 +105,20 @@ export async function findLocalSshIdentities(): Promise<SshKeyIdentity[]> {
     if (identity) out.push(identity);
   }
   return out;
+}
+
+/** Derive an age identity from a passphrase-protected key by decrypting it in-process. */
+export function sshIdentityWithPassphrase(filePath: string, passphrase: string): SshKeyIdentity | null {
+  const parsed = decryptOpenSshPrivateKeyFile(filePath, passphrase);
+  if (!parsed || parsed.encrypted || !parsed.seed) return null;
+  const pubLine = wireToAuthorizedLine(parsed.pubWire);
+  if (!pubLine) return null;
+  const recipient = sshPubLineToRecipient(pubLine);
+  if (!recipient) return null;
+  return {
+    identity: sshSeedToIdentity(parsed.seed),
+    recipient,
+    pubLine,
+    keyPath: filePath,
+  };
 }

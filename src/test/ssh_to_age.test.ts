@@ -14,8 +14,9 @@ import {
   sshPubLineToRecipient,
   sshSeedToIdentity,
   sshIdentityFromFile,
+  sshIdentityWithPassphrase,
 } from "../core/ssh_to_age.js";
-import { readOpenSshPrivateKey, wireToAuthorizedLine } from "../core/ssh_keys.js";
+import { readOpenSshPrivateKey, decryptOpenSshPrivateKeyFile, wireToAuthorizedLine } from "../core/ssh_keys.js";
 import { sealToFileKey, unsealFileKey } from "../core/age_keys.js";
 import { generateKey } from "../core/enc_dec_file.js";
 
@@ -187,6 +188,65 @@ test("non-openssh / non-ed25519 inputs are rejected", () => {
     assert.equal(readOpenSshPrivateKey(file), null);
     assert.equal(sshPubLineToRecipient("ssh-rsa AAAA1234"), null);
     assert.equal(sshPubLineToRecipient("not-a-key"), null);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function makeEncryptedKey(t: { skip: (msg: string) => void }, dir: string, file: string): boolean {
+  try {
+    execFileSync("ssh-keygen", ["-t", "ed25519", "-N", "s3cret", "-C", "test@example.com", "-f", file]);
+    return true;
+  } catch {
+    fs.rmSync(dir, { recursive: true, force: true });
+    t.skip("ssh-keygen not available");
+    return false;
+  }
+}
+
+test("passphrase-protected key: decryptOpenSshPrivateKeyFile recovers the seed", (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nspt-test-"));
+  const file = path.join(dir, "id_ed25519");
+  if (!makeEncryptedKey(t, dir, file)) return;
+  try {
+    const parsed = readOpenSshPrivateKey(file);
+    assert.ok(parsed, "should parse encrypted key");
+    assert.equal(parsed.encrypted, true);
+
+    assert.equal(decryptOpenSshPrivateKeyFile(file, "wrong-pass"), null, "wrong passphrase");
+
+    const decrypted = decryptOpenSshPrivateKeyFile(file, "s3cret");
+    assert.ok(decrypted, "correct passphrase should decrypt");
+    assert.equal(decrypted.encrypted, false);
+    assert.ok(decrypted.seed, "seed should be recovered");
+    assert.equal(decrypted.seed.length, 32);
+    assert.ok(sshSeedToIdentity(decrypted.seed).startsWith("AGE-SECRET-KEY-1"));
+
+    const ident = sshIdentityWithPassphrase(file, "s3cret");
+    assert.ok(ident, "sshIdentityWithPassphrase should unlock");
+    assert.equal(ident.identity, sshSeedToIdentity(decrypted.seed!));
+    assert.equal(sshIdentityWithPassphrase(file, "wrong-pass"), null);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("passphrase-protected key: full seal/unseal round trip", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nspt-test-"));
+  const file = path.join(dir, "id_ed25519");
+  if (!makeEncryptedKey(t, dir, file)) return;
+  try {
+    const id = sshIdentityWithPassphrase(file, "s3cret");
+    assert.ok(id);
+
+    const recipient = sshPubB64ToRecipient(
+      fs.readFileSync(file + ".pub", "utf8").trim().split(/\s+/)[1]!
+    );
+    assert.equal(recipient, id.recipient);
+
+    const fileKeyHex = generateKey();
+    const wrapped = (await sealToFileKey(fileKeyHex, [recipient]))[0]!;
+    assert.equal(await unsealFileKey(wrapped, id.identity), fileKeyHex);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

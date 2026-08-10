@@ -8,6 +8,7 @@ import { readUserKeys, writeUserKeys } from "../core/user_keys.js";
 import { listGroups } from "../core/files.js";
 import { sshPubLineToRecipient } from "../core/ssh_to_age.js";
 import { localKeyUnlockHint } from "../core/ssh_keys.js";
+import { passphraseProvider } from "./passphrase.js";
 
 export type UpdateKeysResult = "updated" | "cancelled" | "error";
 
@@ -35,7 +36,7 @@ export async function runUpdateKeys(groupName?: string): Promise<UpdateKeysResul
   const s = p.spinner();
   s.start("Unwrapping group key...");
 
-  const fileKey = await unwrapGroupKey(groupName);
+  const fileKey = await unwrapGroupKey(groupName, { getPassphrase: passphraseProvider(s) });
   if (!fileKey) {
     s.stop("Failed");
     const hint = await localKeyUnlockHint();
