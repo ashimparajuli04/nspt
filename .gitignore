@@ -5,9 +5,6 @@ plan.md
 # Build output
 dist/
 
-# Local nspt group data (test groups, encrypted files)
-nspt/
-
 # Env / secrets
 .env
 .env.*
