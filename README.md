@@ -18,7 +18,7 @@ Only people you've explicitly added can decrypt anything. Not even the Git host 
 ## Install
 
 ```bash
-npm install -g nspt
+npm install -g @envee/nspt
 ```
 
 ## Quickstart

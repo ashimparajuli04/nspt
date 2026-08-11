@@ -113,3 +113,36 @@ export function addFileToGroupConfig(
   return true;
 }
 
+export function listTrackedFiles(groupPath: string): GroupConfig["files"] {
+  const configPath = path.join(process.cwd(), "nspt", groupPath, "config.toml");
+
+  try {
+    const raw = fs.readFileSync(configPath, "utf-8");
+    const config = toml.parse(raw) as unknown as GroupConfig;
+    return Array.isArray(config.files) ? config.files : [];
+  } catch {
+    return [];
+  }
+}
+
+export function removeFileFromGroupConfig(groupPath: string, name: string): boolean {
+  const configPath = path.join(process.cwd(), "nspt", groupPath, "config.toml");
+
+  let raw: string;
+  try {
+    raw = fs.readFileSync(configPath, "utf-8");
+  } catch {
+    return false;
+  }
+
+  const config = toml.parse(raw) as unknown as GroupConfig;
+  if (!Array.isArray(config.files)) return false;
+
+  const before = config.files.length;
+  config.files = config.files.filter((f) => f.name !== name);
+  if (config.files.length === before) return false;
+
+  fs.writeFileSync(configPath, CONFIG_HEADER + toml.stringify(config));
+  return true;
+}
+
