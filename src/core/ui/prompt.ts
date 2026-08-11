@@ -36,7 +36,7 @@ function onKeypress(_chunk: unknown, key?: { name?: string; ctrl?: boolean }): v
   else if (key.ctrl && key.name === "c") lastCancelKey = "ctrl-c";
 }
 
-async function withBack<T>(run: () => Promise<T | symbol>): Promise<PromptResult<T>> {
+export async function withBack<T>(run: () => Promise<T | symbol | undefined>): Promise<PromptResult<T>> {
   lastCancelKey = null;
   process.stdin.on("keypress", onKeypress);
   try {
