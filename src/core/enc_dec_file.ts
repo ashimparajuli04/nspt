@@ -53,6 +53,17 @@ export function decryptAllFiles(key: string, groupName: string) {
   }
 }
 
+export function readDecryptedFile(
+  key: string,
+  groupName: string,
+  file: { name: string; path: string }
+): string {
+  const encPath = path.join(process.cwd(), "nspt", groupName, "encfiles", `${file.name}.enc`);
+  const data = fs.readFileSync(encPath);
+  const plaintext = decryptBytes(Buffer.from(key, "hex"), data);
+  return plaintext.toString("utf-8");
+}
+
 export function decryptFile(key: Buffer, groupName: string, file: { name: string; path: string }) {
   if (!isPathWithinRoot(file.path)) {
     throw new Error(`Path "${file.path}" is outside the repo root and can't be decrypted to`);

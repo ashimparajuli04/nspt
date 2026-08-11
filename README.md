@@ -15,6 +15,7 @@ No backend, no accounts. Your Git repo is the transport layer, and encryption ha
 - `nspt untrack <group>` — remove a file from a group and delete its encrypted copy
 - `nspt encrypt <group>` — encrypt all tracked files
 - `nspt decrypt <group>` — decrypt files to their original paths
+- `nspt diff <group>` — preview how decrypting would update your tracked files
 - `nspt update-keys <group>` — re-fetch GitHub keys for all members
 - `nspt rotate-key <group>` — rotate the group file key and re-wrap it for all members
 - `nspt remove <group> <username>` — remove a member and rotate the file key
@@ -67,6 +68,7 @@ nspt decrypt <groupName>
 | `nspt untrack <group>` | Untrack a file and delete its encrypted copy |
 | `nspt encrypt <group>` | Encrypt all tracked files |
 | `nspt decrypt <group>` | Decrypt files to original paths |
+| `nspt diff <group>` | Preview how decrypting would update your tracked files |
 | `nspt add <group> <username>` | Add a user to a group |
 | `nspt update-keys <group>` | Re-fetch GitHub keys for all members |
 | `nspt rotate-key <group>` | Rotate the group file key and re-wrap it for all members |

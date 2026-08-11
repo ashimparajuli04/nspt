@@ -45,6 +45,7 @@
     "age-encryption": "^0.3.0",
     "bcrypt-pbkdf": "^1.0.2",
     "commander": "^15.0.0",
+    "diff": "^9.0.0",
     "smol-toml": "^1.7.1"
   }
 }

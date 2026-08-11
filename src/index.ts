@@ -22,6 +22,7 @@ import updateKeys from "./commands/update-keys.js";
 import rotateKey from "./commands/rotate-key.js";
 import remove from "./commands/remove.js";
 import deleteGroup from "./commands/delete-group.js";
+import diff from "./commands/diff.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -46,6 +47,7 @@ updateKeys(program);
 rotateKey(program);
 remove(program);
 deleteGroup(program);
+diff(program);
 
 program.hook("preAction", (_thisCommand, actionCommand) => {
   const name = actionCommand.name();
@@ -73,6 +75,7 @@ program.action(async () => {
               { value: "delete_group", label: "Delete a group" },
               { value: "encrypt", label: "Encrypt tracked files" },
               { value: "decrypt", label: "Decrypt tracked files" },
+              { value: "diff", label: "Preview decrypt (diff)" },
               { value: "add", label: "Add a user to a group" },
               { value: "update_keys", label: "Update keys for a group" },
               { value: "rotate_key", label: "Rotate the file key for a group" },
@@ -120,6 +123,11 @@ program.action(async () => {
         case "decrypt": {
           const { runDecrypt } = await import("./flows/decrypt_flow.js");
           await runDecrypt();
+          break;
+        }
+        case "diff": {
+          const { runDiff } = await import("./flows/diff_flow.js");
+          await runDiff();
           break;
         }
         case "add": {
