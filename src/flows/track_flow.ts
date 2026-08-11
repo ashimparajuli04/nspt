@@ -6,87 +6,94 @@ import { pickFile } from "../core/file_picker.js";
 import { localKeyUnlockHint } from "../core/ssh_keys.js";
 import { verifyGroupMembership } from "../core/unwrap.js";
 import { passphraseProvider } from "./passphrase.js";
+import { select, isBack } from "../core/ui/prompt.js";
 
 export type TrackResult = "tracked" | "cancelled" | "error";
 
 export async function runTrack(groupName?: string, filepath?: string): Promise<TrackResult> {
-  if (!groupName || !groupName.trim()) {
-    const groups = listGroups();
-    if (groups.length === 0) {
-      p.log.error("No groups yet. Create one with 'nspt create-group <name>' first.");
+  const groupProvided = Boolean(groupName);
+
+  while (true) {
+    if (!groupName || !groupName.trim()) {
+      const groups = listGroups();
+      if (groups.length === 0) {
+        p.log.error("No groups yet. Create one with 'nspt create-group <name>' first.");
+        return "error";
+      }
+
+      const value = await select({
+        message: "Which group do you want to track a file in?",
+        options: groups.map((group) => ({ value: group, label: group })),
+      });
+
+      if (isBack(value)) return "cancelled";
+
+      groupName = value;
+    }
+
+    const configPath = path.join(process.cwd(), "nspt", groupName, "config.toml");
+    if (!fs.existsSync(configPath)) {
+      p.log.error(`Group "${groupName}" doesn't exist. Create it with 'nspt create-group ${groupName}'.`);
       return "error";
     }
 
-    const value = await p.select({
-      message: "Which group do you want to track a file in?",
-      options: groups.map((group) => ({ value: group, label: group })),
-    });
-
-    if (p.isCancel(value)) {
-      p.cancel("Cancelled.");
-      return "cancelled";
+    const s = p.spinner();
+    s.start("Verifying group membership...");
+    const isMember = await verifyGroupMembership(groupName, { getPassphrase: passphraseProvider(s) });
+    if (!isMember) {
+      s.stop("Failed");
+      const hint = await localKeyUnlockHint();
+      p.log.error(
+        hint
+          ? `You are not a member of "${groupName}".\n${hint}`
+          : `You are not a member of "${groupName}". Only members can track files.`
+      );
+      return "error";
     }
+    s.clear();
 
-    groupName = value;
-  }
+    while (true) {
+      if (!filepath || !filepath.trim()) {
+        const value = await pickFile();
 
-  const configPath = path.join(process.cwd(), "nspt", groupName, "config.toml");
-  if (!fs.existsSync(configPath)) {
-    p.log.error(`Group "${groupName}" doesn't exist. Create it with 'nspt create-group ${groupName}'.`);
-    return "error";
-  }
+        if (isBack(value)) {
+          if (groupProvided) return "cancelled";
+          groupName = undefined;
+          break;
+        }
 
-  const s = p.spinner();
-  s.start("Verifying group membership...");
-  const isMember = await verifyGroupMembership(groupName, { getPassphrase: passphraseProvider(s) });
-  if (!isMember) {
-    s.stop("Failed");
-    const hint = await localKeyUnlockHint();
-    p.log.error(
-      hint
-        ? `You are not a member of "${groupName}".\n${hint}`
-        : `You are not a member of "${groupName}". Only members can track files.`
-    );
-    return "error";
-  }
-  s.clear();
+        if (value === null) return "cancelled";
 
-  if (!filepath || !filepath.trim()) {
-    const value = await pickFile();
+        filepath = value;
+      }
 
-    if (value === null) {
-      p.cancel("Cancelled.");
-      return "cancelled";
+      if (!fs.existsSync(filepath)) {
+        p.log.error(`File "${filepath}" doesn't exist.`);
+        return "error";
+      }
+
+      if (fs.statSync(filepath).isDirectory()) {
+        p.log.error(`"${filepath}" is a directory. Only files can be tracked.`);
+        return "error";
+      }
+
+      if (!isPathWithinRoot(filepath)) {
+        p.log.error(`"${filepath}" is outside this repo. Only files inside the repo can be tracked.`);
+        return "error";
+      }
+
+      filepath = path.relative(process.cwd(), filepath).split(path.sep).join("/");
+
+      const name = deriveName(filepath);
+      const added = addFileToGroupConfig(groupName, { name, path: filepath });
+
+      if (!added) {
+        p.log.error(`"${name}" (${filepath}) is already tracked in "${groupName}".`);
+        return "error";
+      }
+
+      p.log.success(`Tracked ${filepath} as "${name}" in ${groupName}`);
+      return "tracked";
     }
-
-    filepath = value;
   }
-
-  if (!fs.existsSync(filepath)) {
-    p.log.error(`File "${filepath}" doesn't exist.`);
-    return "error";
-  }
-
-  if (fs.statSync(filepath).isDirectory()) {
-    p.log.error(`"${filepath}" is a directory. Only files can be tracked.`);
-    return "error";
-  }
-
-  if (!isPathWithinRoot(filepath)) {
-    p.log.error(`"${filepath}" is outside this repo. Only files inside the repo can be tracked.`);
-    return "error";
-  }
-
-  filepath = path.relative(process.cwd(), filepath).split(path.sep).join("/");
-
-  const name = deriveName(filepath);
-  const added = addFileToGroupConfig(groupName, { name, path: filepath });
-
-  if (!added) {
-    p.log.error(`"${name}" (${filepath}) is already tracked in "${groupName}".`);
-    return "error";
-  }
-
-  p.log.success(`Tracked ${filepath} as "${name}" in ${groupName}`);
-  return "tracked";
 }

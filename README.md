@@ -13,8 +13,8 @@ No backend, no accounts. Your Git repo is the transport layer, and encryption ha
 - `nspt track <group> <file>` — register a file for encryption
 - `nspt track-env <group>` — auto-discover and track all `.env` files in the repo
 - `nspt untrack <group>` — remove a file from a group and delete its encrypted copy
-- `nspt encrypt <group>` — encrypt all tracked files
-- `nspt decrypt <group>` — decrypt files to their original paths
+- `nspt push <group>` — encrypt all tracked files
+- `nspt pull <group>` — decrypt files to their original paths
 - `nspt diff <group>` — preview how decrypting would update your tracked files
 - `nspt update-keys <group>` — re-fetch GitHub keys for all members
 - `nspt rotate-key <group>` — rotate the group file key and re-wrap it for all members
@@ -43,7 +43,7 @@ nspt track <groupName> .env
 nspt track-env <groupName>
 # finds every .env/.env.local/... file in the repo, asks for confirmation, and tracks them
 
-nspt encrypt <groupName>
+nspt push <groupName>
 # encrypts tracked files into ./nspt/<groupName>/encfiles/
 
 git add . && git commit -m "encrypt patan" && git push
@@ -53,7 +53,7 @@ Teammate's side:
 
 ```bash
 git pull
-nspt decrypt <groupName>
+nspt pull <groupName>
 ```
 
 ## Commands
@@ -66,8 +66,8 @@ nspt decrypt <groupName>
 | `nspt track <group> <filepath>` | Track a file for encryption |
 | `nspt track-env <group>` | Auto-track all `.env` files in the repo (skips `.env.example`) |
 | `nspt untrack <group>` | Untrack a file and delete its encrypted copy |
-| `nspt encrypt <group>` | Encrypt all tracked files |
-| `nspt decrypt <group>` | Decrypt files to original paths |
+| `nspt push <group>` | Encrypt all tracked files |
+| `nspt pull <group>` | Decrypt files to original paths |
 | `nspt diff <group>` | Preview how decrypting would update your tracked files |
 | `nspt add <group> <username>` | Add a user to a group |
 | `nspt update-keys <group>` | Re-fetch GitHub keys for all members |

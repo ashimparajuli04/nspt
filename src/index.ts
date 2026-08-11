@@ -15,14 +15,15 @@ import createGroup from "./commands/create-group.js";
 import track from "./commands/track.js";
 import trackEnv from "./commands/track-env.js";
 import untrack from "./commands/untrack.js";
-import encrypt from "./commands/encrypt.js";
-import decrypt from "./commands/decrypt.js";
+import push from "./commands/push.js";
+import pull from "./commands/pull.js";
 import add from "./commands/add.js";
 import updateKeys from "./commands/update-keys.js";
 import rotateKey from "./commands/rotate-key.js";
 import remove from "./commands/remove.js";
 import deleteGroup from "./commands/delete-group.js";
 import diff from "./commands/diff.js";
+import { select, isBack } from "./core/ui/prompt.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -40,8 +41,8 @@ createGroup(program);
 track(program);
 trackEnv(program);
 untrack(program);
-encrypt(program);
-decrypt(program);
+push(program);
+pull(program);
 add(program);
 updateKeys(program);
 rotateKey(program);
@@ -63,7 +64,7 @@ program.action(async () => {
   while (true) {
     const initialized = fs.existsSync(path.join(process.cwd(), "nspt"));
 
-    const action = await p.select({
+    const action = await select({
       message: "What would you like to do?",
       options: [
         ...(initialized
@@ -73,8 +74,8 @@ program.action(async () => {
               { value: "untrack", label: "Untrack a file" },
               { value: "create_group", label: "Create a new group" },
               { value: "delete_group", label: "Delete a group" },
-              { value: "encrypt", label: "Encrypt tracked files" },
-              { value: "decrypt", label: "Decrypt tracked files" },
+              { value: "push", label: "Push (encrypt) tracked files" },
+              { value: "pull", label: "Pull (decrypt) tracked files" },
               { value: "diff", label: "Preview decrypt (diff)" },
               { value: "add", label: "Add a user to a group" },
               { value: "update_keys", label: "Update keys for a group" },
@@ -88,66 +89,68 @@ program.action(async () => {
       ],
     });
 
-    if (p.isCancel(action)) {
-      p.cancel("Cancelled.");
+    if (isBack(action)) {
+      p.outro("Goodbye!");
       process.exit(0);
     }
+
+    let result: string | undefined;
 
     try {
       switch (action) {
         case "initialize":
-          await runInit();
+          result = await runInit();
           break;
         case "create_group":
-          await runCreateGroup();
+          result = await runCreateGroup();
           break;
         case "delete_group": {
           const { runDeleteGroup } = await import("./flows/delete_group_flow.js");
-          await runDeleteGroup();
+          result = await runDeleteGroup();
           break;
         }
         case "track":
-          await runTrack();
+          result = await runTrack();
           break;
         case "track_env":
-          await runTrackEnv();
+          result = await runTrackEnv();
           break;
         case "untrack":
-          await runUntrack();
+          result = await runUntrack();
           break;
-        case "encrypt": {
+        case "push": {
           const { runEncrypt } = await import("./flows/encrypt_flow.js");
-          await runEncrypt();
+          result = await runEncrypt();
           break;
         }
-        case "decrypt": {
+        case "pull": {
           const { runDecrypt } = await import("./flows/decrypt_flow.js");
-          await runDecrypt();
+          result = await runDecrypt();
           break;
         }
         case "diff": {
           const { runDiff } = await import("./flows/diff_flow.js");
-          await runDiff();
+          result = await runDiff();
           break;
         }
         case "add": {
           const { runAdd } = await import("./flows/add_flow.js");
-          await runAdd();
+          result = await runAdd();
           break;
         }
         case "update_keys": {
           const { runUpdateKeys } = await import("./flows/update_keys_flow.js");
-          await runUpdateKeys();
+          result = await runUpdateKeys();
           break;
         }
         case "rotate_key": {
           const { runRotateKey } = await import("./flows/rotate_key_flow.js");
-          await runRotateKey();
+          result = await runRotateKey();
           break;
         }
         case "remove": {
           const { runRemove } = await import("./flows/remove_flow.js");
-          await runRemove();
+          result = await runRemove();
           break;
         }
         case "quit":
@@ -161,7 +164,9 @@ program.action(async () => {
       p.log.error(`Unexpected error: ${(err as Error).message}`);
     }
 
-    await pressAnyKey();
+    if (result !== "cancelled") {
+      await pressAnyKey();
+    }
   }
 });
 

@@ -6,6 +6,7 @@ import { unwrapGroupKey } from "../core/unwrap.js";
 import { listGroups } from "../core/files.js";
 import { localKeyUnlockHint } from "../core/ssh_keys.js";
 import { passphraseProvider } from "./passphrase.js";
+import { select, isBack } from "../core/ui/prompt.js";
 
 export type DecryptResult = "decrypted" | "cancelled" | "error";
 
@@ -17,15 +18,12 @@ export async function runDecrypt(groupName?: string): Promise<DecryptResult> {
       return "error";
     }
 
-    const value = await p.select({
+    const value = await select({
       message: "Which group do you want to decrypt files for?",
       options: groups.map((group) => ({ value: group, label: group })),
     });
 
-    if (p.isCancel(value)) {
-      p.cancel("Cancelled.");
-      return "cancelled";
-    }
+    if (isBack(value)) return "cancelled";
 
     groupName = value;
   }

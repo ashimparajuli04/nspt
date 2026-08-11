@@ -11,6 +11,7 @@ import { writeUserKeys } from "../core/user_keys.js";
 import { generateKey } from "../core/enc_dec_file.js";
 import { sshIdentityFromFile } from "../core/ssh_to_age.js";
 import { promptSshIdentity } from "./passphrase.js";
+import { text, isBack } from "../core/ui/prompt.js";
 
 export type CreateGroupResult = "created" | "cancelled" | "error";
 
@@ -25,7 +26,7 @@ function validateGroupName(name: string): string | null {
 
 export async function runCreateGroup(groupName?: string): Promise<CreateGroupResult> {
   if (!groupName || !groupName.trim()) {
-    const value = await p.text({
+    const value = await text({
       message: "Enter a name for your group:",
       placeholder: "e.g. ilovenspt",
       validate: (value: string | undefined) => {
@@ -38,10 +39,7 @@ export async function runCreateGroup(groupName?: string): Promise<CreateGroupRes
       },
     });
 
-    if (p.isCancel(value)) {
-      p.cancel("Cancelled.");
-      return "cancelled";
-    }
+    if (isBack(value)) return "cancelled";
 
     groupName = value.trim();
   }

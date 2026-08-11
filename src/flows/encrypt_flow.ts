@@ -5,6 +5,7 @@ import { encryptAllTrackedFiles } from "../core/enc_dec_file.js";
 import { unwrapGroupKey } from "../core/unwrap.js";
 import { listGroups } from "../core/files.js";
 import { passphraseProvider } from "./passphrase.js";
+import { select, isBack } from "../core/ui/prompt.js";
 
 export type EncryptResult = "encrypted" | "cancelled" | "error";
 
@@ -16,15 +17,12 @@ export async function runEncrypt(groupName?: string): Promise<EncryptResult> {
       return "error";
     }
 
-    const value = await p.select({
+    const value = await select({
       message: "Which group do you want to encrypt files for?",
       options: groups.map((group) => ({ value: group, label: group })),
     });
 
-    if (p.isCancel(value)) {
-      p.cancel("Cancelled.");
-      return "cancelled";
-    }
+    if (isBack(value)) return "cancelled";
 
     groupName = value;
   }

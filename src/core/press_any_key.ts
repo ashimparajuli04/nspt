@@ -6,10 +6,11 @@ export async function pressAnyKey(): Promise<void> {
   await new Promise<void>((resolve) => {
     process.stdin.setRawMode(true);
     process.stdin.resume();
-    const onData = () => {
+    const onData = (chunk: Buffer) => {
       process.stdin.off("data", onData);
       process.stdin.setRawMode(false);
       process.stdin.pause();
+      if (chunk.includes(0x03)) process.exit(0);
       resolve();
     };
     process.stdin.once("data", onData);

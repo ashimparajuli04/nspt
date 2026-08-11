@@ -1,10 +1,13 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as p from "@clack/prompts";
+import { autocomplete, BACK, isBack } from "./ui/prompt.js";
 
 const UP = "__nspt_up__";
 
-export async function pickFile(root: string = process.cwd()): Promise<string | null> {
+export async function pickFile(
+  root: string = process.cwd()
+): Promise<string | null | typeof BACK> {
   const stack: string[] = [];
   let current = root;
 
@@ -37,13 +40,13 @@ export async function pickFile(root: string = process.cwd()): Promise<string | n
     }
 
     const display = path.relative(root, current) || ".";
-    const value = await p.autocomplete({
+    const value = await autocomplete({
       message: `Select a file (in ${display}):`,
       options,
       maxItems: 15,
     });
 
-    if (p.isCancel(value)) return null;
+    if (isBack(value)) return BACK;
     if (typeof value !== "string" || value === "") return null;
 
     if (value === UP) {

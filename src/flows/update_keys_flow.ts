@@ -9,6 +9,7 @@ import { listGroups } from "../core/files.js";
 import { sshPubLineToRecipient } from "../core/ssh_to_age.js";
 import { localKeyUnlockHint } from "../core/ssh_keys.js";
 import { passphraseProvider } from "./passphrase.js";
+import { select, isBack } from "../core/ui/prompt.js";
 
 export type UpdateKeysResult = "updated" | "cancelled" | "error";
 
@@ -19,11 +20,11 @@ export async function runUpdateKeys(groupName?: string): Promise<UpdateKeysResul
       p.log.error("No groups yet.");
       return "error";
     }
-    const value = await p.select({
+    const value = await select({
       message: "Which group?",
       options: groups.map((g) => ({ value: g, label: g })),
     });
-    if (p.isCancel(value)) { p.cancel("Cancelled."); return "cancelled"; }
+    if (isBack(value)) return "cancelled";
     groupName = value;
   }
 

@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import * as p from "@clack/prompts";
+import { password, isBack } from "../core/ui/prompt.js";
 import { sshIdentityWithPassphrase, type SshKeyIdentity } from "../core/ssh_to_age.js";
 
 async function promptForPassphrase(
@@ -9,10 +10,10 @@ async function promptForPassphrase(
 ): Promise<string | null> {
   for (;;) {
     spinner.stop();
-    const value = await p.password({
+    const value = await password({
       message: `Enter passphrase for ${path.basename(keyPath)}:`,
     });
-    if (p.isCancel(value)) return null;
+    if (isBack(value)) return null;
     if (!sshIdentityWithPassphrase(keyPath, value)) {
       p.log.error("Incorrect passphrase. Try again.");
       continue;
