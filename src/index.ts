@@ -19,6 +19,7 @@ import encrypt from "./commands/encrypt.js";
 import decrypt from "./commands/decrypt.js";
 import add from "./commands/add.js";
 import updateKeys from "./commands/update-keys.js";
+import rotateKey from "./commands/rotate-key.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -40,6 +41,7 @@ encrypt(program);
 decrypt(program);
 add(program);
 updateKeys(program);
+rotateKey(program);
 
 program.hook("preAction", (_thisCommand, actionCommand) => {
   const name = actionCommand.name();
@@ -68,6 +70,7 @@ program.action(async () => {
               { value: "decrypt", label: "Decrypt tracked files" },
               { value: "add", label: "Add a user to a group" },
               { value: "update_keys", label: "Update keys for a group" },
+              { value: "rotate_key", label: "Rotate the file key for a group" },
             ]
           : [
               { value: "initialize", label: "Initialize nspt in this directory" },
@@ -116,6 +119,11 @@ program.action(async () => {
         case "update_keys": {
           const { runUpdateKeys } = await import("./flows/update_keys_flow.js");
           await runUpdateKeys();
+          break;
+        }
+        case "rotate_key": {
+          const { runRotateKey } = await import("./flows/rotate_key_flow.js");
+          await runRotateKey();
           break;
         }
         case "quit":

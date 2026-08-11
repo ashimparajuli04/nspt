@@ -65,7 +65,7 @@ export async function runAdd(
   s.start(`Fetching GitHub keys for ${inviteeUsername}...`);
   let githubKeys;
   try {
-    githubKeys = await fetchUserKeys(inviteeUsername, undefined, { useCache: false });
+    githubKeys = await fetchUserKeys(inviteeUsername, { useCache: false });
   } catch (err) {
     if (err instanceof GithubRateLimitError) {
       s.stop("Failed");

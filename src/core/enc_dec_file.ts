@@ -22,19 +22,15 @@ export function encryptFile(key: Buffer, groupName: string, file: { name: string
   if (!isPathWithinRoot(file.path)) {
     throw new Error(`Path "${file.path}" is outside the repo root and can't be encrypted`);
   }
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
   let plaintext: Buffer;
   try {
     plaintext = fs.readFileSync(file.path);
   } catch {
     throw new Error(`Could not read "${file.name}" at ${file.path}`);
   }
-  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-  const tag = cipher.getAuthTag();
   const outPath = path.join(process.cwd(), "nspt", groupName, "encfiles", `${file.name}.enc`);
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, Buffer.concat([iv, tag, ciphertext]));
+  fs.writeFileSync(outPath, encryptBytes(key, plaintext));
 }
 
 export function decryptAllFiles(key: string, groupName: string) {
@@ -68,16 +64,42 @@ export function decryptFile(key: Buffer, groupName: string, file: { name: string
   } catch {
     throw new Error(`Could not read encrypted file "${file.name}" at ${encPath}`);
   }
+  let restored: Buffer;
+  try {
+    restored = decryptBytes(key, data);
+  } catch {
+    throw new Error(`Decryption failed for "${file.name}" — wrong key or corrupted encrypted file`);
+  }
+  fs.writeFileSync(file.path, restored);
+}
+
+export function rotateEncryptedFiles(oldKey: string, newKey: string, groupName: string) {
+  const oldKeyBuffer = Buffer.from(oldKey, "hex");
+  const newKeyBuffer = Buffer.from(newKey, "hex");
+  const raw = fs.readFileSync(path.join(process.cwd(), "nspt", groupName, "config.toml"), "utf-8");
+  const config = toml.parse(raw) as { files: { name: string; path: string }[] };
+
+  for (const file of config.files) {
+    const encPath = path.join(process.cwd(), "nspt", groupName, "encfiles", `${file.name}.enc`);
+    const data = fs.readFileSync(encPath);
+    const plaintext = decryptBytes(oldKeyBuffer, data);
+    fs.writeFileSync(encPath, encryptBytes(newKeyBuffer, plaintext));
+  }
+}
+
+function encryptBytes(key: Buffer, plaintext: Buffer): Buffer {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, ciphertext]);
+}
+
+function decryptBytes(key: Buffer, data: Buffer): Buffer {
   const decIv = data.subarray(0, 12);
   const decTag = data.subarray(12, 28);
   const decCiphertext = data.subarray(28);
   const decipher = createDecipheriv("aes-256-gcm", key, decIv);
   decipher.setAuthTag(decTag);
-  let restored: Buffer;
-  try {
-    restored = Buffer.concat([decipher.update(decCiphertext), decipher.final()]);
-  } catch {
-    throw new Error(`Decryption failed for "${file.name}" — wrong key or corrupted encrypted file`);
-  }
-  fs.writeFileSync(file.path, restored);
+  return Buffer.concat([decipher.update(decCiphertext), decipher.final()]);
 }

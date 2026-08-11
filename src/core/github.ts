@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const GITHUB_API = "https://api.github.com";
+const GITHUB_WEB = "https://github.com";
 const CACHE_DIR = path.join(homedir(), ".config", "nspt");
 const KEYS_CACHE_PATH = path.join(CACHE_DIR, "github_keys.json");
 
@@ -14,7 +15,6 @@ export class GithubRateLimitError extends Error {
 }
 
 export interface GithubKey {
-  id: number;
   key: string;
   title: string;
 }
@@ -50,6 +50,28 @@ function writeCache(username: string, keys: GithubKey[]): void {
   );
 }
 
+const KEY_TYPE_RE = /^(ssh-|ecdsa-|sk-)/;
+
+/**
+ * Parse the plain-text body of `https://github.com/<username>.keys`.
+ * Each line is an authorized_keys entry: `<type> <base64> [comment]`.
+ * The comment is kept as the title, so the `key` string stays in the
+ * API-compatible `<type> <base64>` format (no trailing comment).
+ */
+export function parseKeysBody(body: string): GithubKey[] {
+  const keys: GithubKey[] = [];
+  for (const rawLine of body.split("\n")) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const parts = line.split(/\s+/);
+    const type = parts[0];
+    const key = parts[1];
+    if (parts.length < 2 || !type || !key || !KEY_TYPE_RE.test(type)) continue;
+    keys.push({ key: `${type} ${key}`, title: parts.slice(2).join(" ") });
+  }
+  return keys;
+}
+
 export interface FetchUserKeysOptions {
   /** When false, always fetch from GitHub and ignore the local cache. */
   useCache?: boolean;
@@ -57,7 +79,6 @@ export interface FetchUserKeysOptions {
 
 export async function fetchUserKeys(
   username: string,
-  token?: string,
   options: FetchUserKeysOptions = {}
 ): Promise<GithubKey[]> {
   if (options.useCache !== false) {
@@ -65,44 +86,13 @@ export async function fetchUserKeys(
     if (cached) return cached;
   }
 
-  const headers: Record<string, string> = {
-    Accept: "application/vnd.github+json",
-    "User-Agent": "nspt-cli",
-  };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
   try {
     const res = await fetch(
-      `${GITHUB_API}/users/${encodeURIComponent(username)}/keys?per_page=100`,
-      { headers }
+      `${GITHUB_WEB}/${encodeURIComponent(username)}.keys`,
+      { headers: { "User-Agent": "nspt-cli" } }
     );
-
-    if (!res.ok) {
-      if (res.status === 403 || res.status === 429) {
-        const body = await res.text().catch(() => "");
-        if (/rate limit/i.test(body)) {
-          throw new GithubRateLimitError(
-            "GitHub API rate limit exceeded. Try again later, or pass a token for authenticated requests."
-          );
-        }
-      }
-      return [];
-    }
-
-    const data = (await res.json()) as Array<{
-      id: number;
-      key: string;
-      title: string;
-    }>;
-
-    const keys: GithubKey[] = data.map((item) => ({
-      id: item.id,
-      key: item.key,
-      title: item.title,
-    }));
-
+    if (!res.ok) return [];
+    const keys = parseKeysBody(await res.text());
     writeCache(username, keys);
     return keys;
   } catch {
