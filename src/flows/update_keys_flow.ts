@@ -62,7 +62,7 @@ export async function runUpdateKeys(groupName?: string): Promise<UpdateKeysResul
     s.start(`Fetching keys for ${user.username}...`);
     let githubKeys;
     try {
-      githubKeys = await fetchUserKeys(user.username);
+      githubKeys = await fetchUserKeys(user.username, undefined, { useCache: false });
     } catch (err) {
       if (err instanceof GithubRateLimitError) {
         s.stop("Rate limited");
