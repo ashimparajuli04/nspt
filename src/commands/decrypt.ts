@@ -1,12 +1,12 @@
 import type { Command } from "commander";
-import { runSync } from "../flows/sync_flow.js";
+import { runDecrypt } from "../flows/decrypt_flow.js";
 import { runCliAction } from "../core/cli_action.js";
 
-export default function sync(program: Command) {
+export default function decrypt(program: Command) {
   program
-    .command("sync [group]")
+    .command("decrypt [group]")
     .description("Decrypt files for a group")
     .action(async (group?: string) => {
-      await runCliAction(() => runSync(group));
+      await runCliAction(() => runDecrypt(group));
     });
 }

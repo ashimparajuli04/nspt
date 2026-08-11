@@ -1,14 +1,15 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as p from "@clack/prompts";
-import { encryptAllTrackedFiles } from "../core/enc_dec_file.js";
+import { decryptAllFiles } from "../core/enc_dec_file.js";
 import { unwrapGroupKey } from "../core/unwrap.js";
 import { listGroups } from "../core/files.js";
+import { localKeyUnlockHint } from "../core/ssh_keys.js";
 import { passphraseProvider } from "./passphrase.js";
 
-export type SyncUpResult = "synced" | "cancelled" | "error";
+export type DecryptResult = "decrypted" | "cancelled" | "error";
 
-export async function runSyncUp(groupName?: string): Promise<SyncUpResult> {
+export async function runDecrypt(groupName?: string): Promise<DecryptResult> {
   if (!groupName || !groupName.trim()) {
     const groups = listGroups();
     if (groups.length === 0) {
@@ -17,7 +18,7 @@ export async function runSyncUp(groupName?: string): Promise<SyncUpResult> {
     }
 
     const value = await p.select({
-      message: "Which group do you want to sync up?",
+      message: "Which group do you want to decrypt files for?",
       options: groups.map((group) => ({ value: group, label: group })),
     });
 
@@ -41,22 +42,26 @@ export async function runSyncUp(groupName?: string): Promise<SyncUpResult> {
   const fileKey = await unwrapGroupKey(groupName, { getPassphrase: passphraseProvider(s) });
   if (!fileKey) {
     s.stop("Failed");
-    p.log.error("Could not unwrap group key. Are you a member of this group?");
+    const hint = await localKeyUnlockHint();
+    p.log.error(
+      hint
+        ? `Could not unwrap group key.\n${hint}`
+        : "Could not unwrap group key. Are you a member of this group?"
+    );
     return "error";
   }
 
   s.clear();
 
-  s.start("Encrypting tracked files...");
+  s.start("Decrypting files...");
   try {
-    encryptAllTrackedFiles(fileKey, groupName);
-    s.stop("All tracked files encrypted");
-    p.log.success(`Synced up group "${groupName}"`);
-    return "synced";
+    decryptAllFiles(fileKey, groupName);
+    s.stop("All files decrypted");
+    p.log.success(`Decrypted files for group "${groupName}"`);
+    return "decrypted";
   } catch (err) {
     s.stop("Failed");
-    p.log.error(`Encryption failed: ${(err as Error).message}`);
+    p.log.error(`Decryption failed: ${(err as Error).message}`);
     return "error";
   }
 }
-
