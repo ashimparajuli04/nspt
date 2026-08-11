@@ -9,6 +9,13 @@ export interface UnwrapOptions {
   getPassphrase?: (keyPath: string) => Promise<string | null>;
 }
 
+export async function verifyGroupMembership(
+  groupName: string,
+  options: UnwrapOptions = {}
+): Promise<boolean> {
+  return (await unwrapGroupKey(groupName, options)) !== null;
+}
+
 export async function unwrapGroupKey(
   groupName: string,
   options: UnwrapOptions = {}

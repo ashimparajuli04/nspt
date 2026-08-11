@@ -3,6 +3,9 @@ import * as path from "node:path";
 import * as p from "@clack/prompts";
 import { addFileToGroupConfig, deriveName, isPathWithinRoot, listGroups } from "../core/files.js";
 import { pickFile } from "../core/file_picker.js";
+import { localKeyUnlockHint } from "../core/ssh_keys.js";
+import { verifyGroupMembership } from "../core/unwrap.js";
+import { passphraseProvider } from "./passphrase.js";
 
 export type TrackResult = "tracked" | "cancelled" | "error";
 
@@ -32,6 +35,21 @@ export async function runTrack(groupName?: string, filepath?: string): Promise<T
     p.log.error(`Group "${groupName}" doesn't exist. Create it with 'nspt create-group ${groupName}'.`);
     return "error";
   }
+
+  const s = p.spinner();
+  s.start("Verifying group membership...");
+  const isMember = await verifyGroupMembership(groupName, { getPassphrase: passphraseProvider(s) });
+  if (!isMember) {
+    s.stop("Failed");
+    const hint = await localKeyUnlockHint();
+    p.log.error(
+      hint
+        ? `You are not a member of "${groupName}".\n${hint}`
+        : `You are not a member of "${groupName}". Only members can track files.`
+    );
+    return "error";
+  }
+  s.clear();
 
   if (!filepath || !filepath.trim()) {
     const value = await pickFile();
