@@ -9,11 +9,13 @@ No backend, no accounts. Your Git repo is the transport layer, and encryption ha
 - `nspt init` — detect your GitHub identity, create your first group
 - `nspt add <group> <username>` — add a teammate (fetches their GitHub SSH key for verification)
 - `nspt track <group> <file>` — register a file for encryption
-- `nspt sync-up <group>` — encrypt all tracked files
-- `nspt sync <group>` — decrypt files to their original paths
+- `nspt track-env <group>` — auto-discover and track all `.env` files in the repo
+- `nspt untrack <group>` — remove a file from a group and delete its encrypted copy
+- `nspt encrypt <group>` — encrypt all tracked files
+- `nspt decrypt <group>` — decrypt files to their original paths
 - `nspt update-keys <group>` — re-fetch GitHub keys for all members
 
-Only people you've explicitly added can decrypt anything. Not even the Git host can read the contents.
+Only people you've explicitly added can decrypt anything. Not even the Git host can read the contents. Tracking and untracking require group membership (verified by unlocking the group key).
 
 ## Install
 
@@ -25,25 +27,28 @@ npm install -g @envee/nspt
 
 ```bash
 nspt init
-# enter group name: patan
+# initialize nspt and create your first group
 
-nspt add patan alice04
-# fetches alice04's GitHub public key, grants her access
+nspt add <groupName> torvalds
+# fetches torvalds's GitHub public key, grants her access
 
-nspt track patan .env
+nspt track <groupName> .env
 # registers .env for encryption
 
-nspt sync-up patan
-# encrypts tracked files into ./nspt/patan/encfiles/
+nspt track-env <groupName>
+# finds every .env/.env.local/... file in the repo, asks for confirmation, and tracks them
 
-git add . && git commit -m "sync patan" && git push
+nspt encrypt <groupName>
+# encrypts tracked files into ./nspt/<groupName>/encfiles/
+
+git add . && git commit -m "encrypt patan" && git push
 ```
 
 Teammate's side:
 
 ```bash
 git pull
-nspt sync patan
+nspt decrypt <groupName>
 ```
 
 ## Commands
@@ -53,14 +58,12 @@ nspt sync patan
 | `nspt init` | Initialize nspt and create your first group |
 | `nspt create-group <name>` | Create a new group |
 | `nspt track <group> <filepath>` | Track a file for encryption |
-| `nspt sync-up <group>` | Encrypt all tracked files |
-| `nspt sync <group>` | Decrypt files to original paths |
+| `nspt track-env <group>` | Auto-track all `.env` files in the repo (skips `.env.example`) |
+| `nspt untrack <group>` | Untrack a file and delete its encrypted copy |
+| `nspt encrypt <group>` | Encrypt all tracked files |
+| `nspt decrypt <group>` | Decrypt files to original paths |
 | `nspt add <group> <username>` | Add a user to a group |
 | `nspt update-keys <group>` | Re-fetch GitHub keys for all members |
-
-## Status
-
-Early development — not yet ready for production use.
 
 ## License
 

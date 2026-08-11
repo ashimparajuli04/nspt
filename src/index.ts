@@ -3,6 +3,7 @@ import { Command } from "commander";
 import * as p from "@clack/prompts";
 import * as fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { runInit } from "./flows/init_flow.js";
 import init from "./commands/init.js";
 import { runCreateGroup } from "./flows/create_group_flow.js";
@@ -14,17 +15,20 @@ import createGroup from "./commands/create-group.js";
 import track from "./commands/track.js";
 import trackEnv from "./commands/track-env.js";
 import untrack from "./commands/untrack.js";
-import syncUp from "./commands/sync-up.js";
-import sync from "./commands/sync.js";
+import encrypt from "./commands/encrypt.js";
+import decrypt from "./commands/decrypt.js";
 import add from "./commands/add.js";
 import updateKeys from "./commands/update-keys.js";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
 
 const program = new Command();
 
 program
   .name("nspt")
   .description("Secure, serverless .env sync for teams")
-  .version("1.0.0")
+  .version(version)
   .showHelpAfterError();
 
 init(program);
@@ -32,8 +36,8 @@ createGroup(program);
 track(program);
 trackEnv(program);
 untrack(program);
-syncUp(program);
-sync(program);
+encrypt(program);
+decrypt(program);
 add(program);
 updateKeys(program);
 
@@ -60,8 +64,8 @@ program.action(async () => {
               { value: "track_env", label: "Track all .env files" },
               { value: "untrack", label: "Untrack a file" },
               { value: "create_group", label: "Create a new group" },
-              { value: "sync_up", label: "Sync up (encrypt)" },
-              { value: "sync", label: "Sync (decrypt)" },
+              { value: "encrypt", label: "Encrypt tracked files" },
+              { value: "decrypt", label: "Decrypt tracked files" },
               { value: "add", label: "Add a user to a group" },
               { value: "update_keys", label: "Update keys for a group" },
             ]
@@ -94,14 +98,14 @@ program.action(async () => {
         case "untrack":
           await runUntrack();
           break;
-        case "sync_up": {
-          const { runSyncUp } = await import("./flows/sync_up_flow.js");
-          await runSyncUp();
+        case "encrypt": {
+          const { runEncrypt } = await import("./flows/encrypt_flow.js");
+          await runEncrypt();
           break;
         }
-        case "sync": {
-          const { runSync } = await import("./flows/sync_flow.js");
-          await runSync();
+        case "decrypt": {
+          const { runDecrypt } = await import("./flows/decrypt_flow.js");
+          await runDecrypt();
           break;
         }
         case "add": {
