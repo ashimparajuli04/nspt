@@ -61,6 +61,12 @@ export function listUsers(data: UserKeysFile): string[] {
   return data.users.map((u) => u.username);
 }
 
+export function removeUser(data: UserKeysFile, username: string): boolean {
+  const before = data.users.length;
+  data.users = data.users.filter((u) => u.username !== username);
+  return data.users.length < before;
+}
+
 export function getUserKeys(
   data: UserKeysFile,
   username: string

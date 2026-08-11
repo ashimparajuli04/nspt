@@ -15,6 +15,7 @@ No backend, no accounts. Your Git repo is the transport layer, and encryption ha
 - `nspt decrypt <group>` — decrypt files to their original paths
 - `nspt update-keys <group>` — re-fetch GitHub keys for all members
 - `nspt rotate-key <group>` — rotate the group file key and re-wrap it for all members
+- `nspt remove <group> <username>` — remove a member and rotate the file key
 
 Only people you've explicitly added can decrypt anything. Not even the Git host can read the contents. Tracking and untracking require group membership (verified by unlocking the group key). Public keys are fetched from GitHub's `https://github.com/<username>.keys` endpoint — no API token or rate limits required.
 
@@ -66,6 +67,7 @@ nspt decrypt <groupName>
 | `nspt add <group> <username>` | Add a user to a group |
 | `nspt update-keys <group>` | Re-fetch GitHub keys for all members |
 | `nspt rotate-key <group>` | Rotate the group file key and re-wrap it for all members |
+| `nspt remove <group> <username>` | Remove a member and rotate the file key |
 
 ## License
 

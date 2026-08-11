@@ -20,6 +20,7 @@ import decrypt from "./commands/decrypt.js";
 import add from "./commands/add.js";
 import updateKeys from "./commands/update-keys.js";
 import rotateKey from "./commands/rotate-key.js";
+import remove from "./commands/remove.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -42,6 +43,7 @@ decrypt(program);
 add(program);
 updateKeys(program);
 rotateKey(program);
+remove(program);
 
 program.hook("preAction", (_thisCommand, actionCommand) => {
   const name = actionCommand.name();
@@ -71,6 +73,7 @@ program.action(async () => {
               { value: "add", label: "Add a user to a group" },
               { value: "update_keys", label: "Update keys for a group" },
               { value: "rotate_key", label: "Rotate the file key for a group" },
+              { value: "remove", label: "Remove a user from a group" },
             ]
           : [
               { value: "initialize", label: "Initialize nspt in this directory" },
@@ -124,6 +127,11 @@ program.action(async () => {
         case "rotate_key": {
           const { runRotateKey } = await import("./flows/rotate_key_flow.js");
           await runRotateKey();
+          break;
+        }
+        case "remove": {
+          const { runRemove } = await import("./flows/remove_flow.js");
+          await runRemove();
           break;
         }
         case "quit":

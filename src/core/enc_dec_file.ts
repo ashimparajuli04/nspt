@@ -81,7 +81,12 @@ export function rotateEncryptedFiles(oldKey: string, newKey: string, groupName: 
 
   for (const file of config.files) {
     const encPath = path.join(process.cwd(), "nspt", groupName, "encfiles", `${file.name}.enc`);
-    const data = fs.readFileSync(encPath);
+    let data: Buffer;
+    try {
+      data = fs.readFileSync(encPath);
+    } catch {
+      continue;
+    }
     const plaintext = decryptBytes(oldKeyBuffer, data);
     fs.writeFileSync(encPath, encryptBytes(newKeyBuffer, plaintext));
   }
