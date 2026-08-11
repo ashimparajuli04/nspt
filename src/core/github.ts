@@ -50,12 +50,20 @@ function writeCache(username: string, keys: GithubKey[]): void {
   );
 }
 
+export interface FetchUserKeysOptions {
+  /** When false, always fetch from GitHub and ignore the local cache. */
+  useCache?: boolean;
+}
+
 export async function fetchUserKeys(
   username: string,
-  token?: string
+  token?: string,
+  options: FetchUserKeysOptions = {}
 ): Promise<GithubKey[]> {
-  const cached = readCache(username);
-  if (cached) return cached;
+  if (options.useCache !== false) {
+    const cached = readCache(username);
+    if (cached) return cached;
+  }
 
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
