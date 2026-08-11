@@ -8,6 +8,8 @@ No backend, no accounts. Your Git repo is the transport layer, and encryption ha
 
 - `nspt init` — detect your GitHub identity, create your first group
 - `nspt add <group> <username>` — add a teammate (fetches their GitHub SSH key for verification)
+- `nspt create-group <name>` — create a new group
+- `nspt delete-group <group>` — permanently delete a group (confirm + type its name)
 - `nspt track <group> <file>` — register a file for encryption
 - `nspt track-env <group>` — auto-discover and track all `.env` files in the repo
 - `nspt untrack <group>` — remove a file from a group and delete its encrypted copy
@@ -59,6 +61,7 @@ nspt decrypt <groupName>
 |---------|-------------|
 | `nspt init` | Initialize nspt and create your first group |
 | `nspt create-group <name>` | Create a new group |
+| `nspt delete-group <group>` | Permanently delete a group (confirm + type its name) |
 | `nspt track <group> <filepath>` | Track a file for encryption |
 | `nspt track-env <group>` | Auto-track all `.env` files in the repo (skips `.env.example`) |
 | `nspt untrack <group>` | Untrack a file and delete its encrypted copy |

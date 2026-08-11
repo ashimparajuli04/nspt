@@ -32,3 +32,7 @@ export function loadIdentity(groupName: string): string | null {
 export function hasIdentity(groupName: string): boolean {
   return fs.existsSync(ageIdentityPath(groupName));
 }
+
+export function removeStoredIdentity(groupName: string): void {
+  fs.rmSync(ageIdentityDir(groupName), { recursive: true, force: true });
+}

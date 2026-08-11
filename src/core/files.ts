@@ -43,6 +43,11 @@ export function listGroups(): string[] {
     .sort();
 }
 
+export function deleteGroup(groupName: string): void {
+  const dir = path.join(process.cwd(), "nspt", groupName);
+  fs.rmSync(dir, { recursive: true, force: true });
+}
+
 export function createGroupConfig(groupPath: string, groupName: string): void {
   const configPath = path.join(groupPath, "config.toml");
 

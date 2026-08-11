@@ -21,6 +21,7 @@ import add from "./commands/add.js";
 import updateKeys from "./commands/update-keys.js";
 import rotateKey from "./commands/rotate-key.js";
 import remove from "./commands/remove.js";
+import deleteGroup from "./commands/delete-group.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -44,6 +45,7 @@ add(program);
 updateKeys(program);
 rotateKey(program);
 remove(program);
+deleteGroup(program);
 
 program.hook("preAction", (_thisCommand, actionCommand) => {
   const name = actionCommand.name();
@@ -68,6 +70,7 @@ program.action(async () => {
               { value: "track_env", label: "Track all .env files" },
               { value: "untrack", label: "Untrack a file" },
               { value: "create_group", label: "Create a new group" },
+              { value: "delete_group", label: "Delete a group" },
               { value: "encrypt", label: "Encrypt tracked files" },
               { value: "decrypt", label: "Decrypt tracked files" },
               { value: "add", label: "Add a user to a group" },
@@ -95,6 +98,11 @@ program.action(async () => {
         case "create_group":
           await runCreateGroup();
           break;
+        case "delete_group": {
+          const { runDeleteGroup } = await import("./flows/delete_group_flow.js");
+          await runDeleteGroup();
+          break;
+        }
         case "track":
           await runTrack();
           break;
