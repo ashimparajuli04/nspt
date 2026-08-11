@@ -7,9 +7,13 @@ import { runInit } from "./flows/init_flow.js";
 import init from "./commands/init.js";
 import { runCreateGroup } from "./flows/create_group_flow.js";
 import { runTrack } from "./flows/track_flow.js";
+import { runTrackEnv } from "./flows/track_env_flow.js";
+import { runUntrack } from "./flows/untrack_flow.js";
 import { pressAnyKey } from "./core/press_any_key.js";
 import createGroup from "./commands/create-group.js";
 import track from "./commands/track.js";
+import trackEnv from "./commands/track-env.js";
+import untrack from "./commands/untrack.js";
 import syncUp from "./commands/sync-up.js";
 import sync from "./commands/sync.js";
 import add from "./commands/add.js";
@@ -26,6 +30,8 @@ program
 init(program);
 createGroup(program);
 track(program);
+trackEnv(program);
+untrack(program);
 syncUp(program);
 sync(program);
 add(program);
@@ -51,6 +57,8 @@ program.action(async () => {
         ...(initialized
           ? [
               { value: "track", label: "Track a file" },
+              { value: "track_env", label: "Track all .env files" },
+              { value: "untrack", label: "Untrack a file" },
               { value: "create_group", label: "Create a new group" },
               { value: "sync_up", label: "Sync up (encrypt)" },
               { value: "sync", label: "Sync (decrypt)" },
@@ -79,6 +87,12 @@ program.action(async () => {
           break;
         case "track":
           await runTrack();
+          break;
+        case "track_env":
+          await runTrackEnv();
+          break;
+        case "untrack":
+          await runUntrack();
           break;
         case "sync_up": {
           const { runSyncUp } = await import("./flows/sync_up_flow.js");
