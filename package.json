@@ -47,6 +47,7 @@
     "bcrypt-pbkdf": "^1.0.2",
     "commander": "^15.0.0",
     "diff": "^9.0.0",
+    "fast-string-width": "^3.0.2",
     "smol-toml": "^1.7.1"
   }
 }

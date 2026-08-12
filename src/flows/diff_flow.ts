@@ -4,7 +4,7 @@ import * as p from "@clack/prompts";
 import { readDecryptedFile } from "../core/enc_dec_file.js";
 import { unwrapGroupKey } from "../core/unwrap.js";
 import { listGroups, listTrackedFiles } from "../core/files.js";
-import { renderUnifiedDiff } from "../core/diff.js";
+import { renderUnifiedDiff, createDiffStyler } from "../core/diff.js";
 import { localKeyUnlockHint } from "../core/ssh_keys.js";
 import { passphraseProvider } from "./passphrase.js";
 import { select, isBack } from "../core/ui/prompt.js";
@@ -81,10 +81,6 @@ export async function runDiff(groupName?: string): Promise<DiffResult> {
     const multiple = targets.length > 1;
 
     for (const file of targets) {
-      if (multiple) {
-        console.log(`\n=== ${file.path} ===`);
-      }
-
       let local = "";
       try {
         local = fs.readFileSync(file.path, "utf-8");
@@ -102,10 +98,14 @@ export async function runDiff(groupName?: string): Promise<DiffResult> {
 
       const out = renderUnifiedDiff(file.path, file.path, local, remote);
       if (out === null) {
-        console.log("No differences");
-      } else {
-        console.log(out);
+        if (!multiple) console.log("No differences");
+        continue;
       }
+
+      if (multiple) {
+        console.log(`\n${createDiffStyler().fileHeader(`=== ${file.path} ===`)}`);
+      }
+      console.log(out);
     }
 
     return "shown";
