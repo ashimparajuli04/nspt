@@ -7,6 +7,8 @@ import { findLocalSshIdentities, sshIdentityWithPassphrase } from "./ssh_to_age.
 
 export interface UnwrapOptions {
   getPassphrase?: (keyPath: string) => Promise<string | null>;
+  /** Override local key discovery (used by tests). */
+  identities?: string[];
 }
 
 export async function verifyGroupMembership(
@@ -24,9 +26,11 @@ export async function unwrapGroupKey(
   const userKeys = readUserKeys(groupDir);
   if (!userKeys) return null;
 
-  const identities: string[] = [];
-  const local = await findLocalSshIdentities();
-  for (const id of local) identities.push(id.identity);
+  const identities: string[] = options.identities ? [...options.identities] : [];
+  if (!options.identities) {
+    const local = await findLocalSshIdentities();
+    for (const id of local) identities.push(id.identity);
+  }
 
   if (options.getPassphrase) {
     const encrypted = await findEncryptedLocalKeys();

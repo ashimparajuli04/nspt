@@ -11,6 +11,8 @@ import {
   discoverLocalKeys,
   findLocalKeyForPublicKey,
   findEncryptedLocalKeys,
+  hasLocalEd25519Key,
+  noEd25519KeyHint,
   sshWireString,
 } from "../core/ssh_keys.js";
 
@@ -182,6 +184,36 @@ test("discover: a .pub without its private half is not reported as present", asy
     fs.writeFileSync(path.join(dir, "id_ed25519.pub"), pubLineOf(pub) + "\n");
     const keys = (await discoverLocalKeys(dir)).filter((k) => k.source !== "agent");
     assert.deepEqual(keys, []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("hasLocalEd25519Key: false on empty dir, true with an ed25519 key, false for RSA-only", async () => {
+  const dir = makeSshDir();
+  try {
+    assert.equal(await hasLocalEd25519Key(dir), false, "empty dir");
+
+    const { seed, pub } = makeKeypair();
+    fs.writeFileSync(path.join(dir, "id_ed25519"), buildOpenSshKey(seed, pub, "ed"));
+    assert.equal(await hasLocalEd25519Key(dir), true, "ed25519 key present");
+
+    fs.rmSync(path.join(dir, "id_ed25519"));
+    fs.writeFileSync(path.join(dir, "id_rsa"), "-----BEGIN RSA PRIVATE KEY-----\nAAAA\n-----END RSA PRIVATE KEY-----\n");
+    assert.equal(await hasLocalEd25519Key(dir), false, "RSA-only is not usable");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("noEd25519KeyHint: null with a key, OS help without one", async () => {
+  const dir = makeSshDir();
+  try {
+    assert.ok((await noEd25519KeyHint(dir))!.includes("ssh-keygen -t ed25519"), "hint offers generation");
+
+    const { seed, pub } = makeKeypair();
+    fs.writeFileSync(path.join(dir, "id_ed25519"), buildOpenSshKey(seed, pub, "ed"));
+    assert.equal(await noEd25519KeyHint(dir), null, "no hint when a key exists");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

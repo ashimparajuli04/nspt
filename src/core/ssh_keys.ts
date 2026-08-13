@@ -479,8 +479,8 @@ export async function hasLocalEd25519Key(sshDir: string = SSH_DIR): Promise<bool
 }
 
 /** Human-readable guidance when the machine has no usable ed25519 key, or null. */
-export async function noEd25519KeyHint(): Promise<string | null> {
-  if (await hasLocalEd25519Key()) return null;
+export async function noEd25519KeyHint(sshDir: string = SSH_DIR): Promise<string | null> {
+  if (await hasLocalEd25519Key(sshDir)) return null;
   return generateHelp();
 }
 
