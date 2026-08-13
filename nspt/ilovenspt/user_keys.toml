@@ -2,4 +2,10 @@
 # Each entry maps a user's age public key to an age-wrapped group file key.
 key_version = 1
 
+[[users]]
+username = "ashimparajuli04"
 
+[[users.keys]]
+age = "age17vaqz6mzycc4v9ena00cc359w02gqdm792hpapnjzslz86gfe4yspxucv2"
+ssh = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC2u8OkP5IaRNw6mtUOWJqC1K05nmKrVc9o0xjUI5hDT"
+wrapped = "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBNZnA4VHZKSVBTZzRXNUxW\nSVcrMnd4ZXdOcnQzdjl5a1hSOFNzUmhSUVRJCmpBSEluMjU2VGRUQVRRMjRYTjMv\na3FrOHRLRGZtc2xFS0FXMlBGVFROTHMKLS0tIFFRd1pZLzBWZUgvSU85ZVlJZitU\nNnA4ZzBCOC9oWDI3WUlJWkVqV2Q2K1EK9eo/COnX0bQd4g5YtUJJ7zXBhFaB7Fsn\nUh/dJIgi+jYgJKckdGH9Chg7MmeYgu/2p4IQqs8zVH43gl5WlOINhA==\n-----END AGE ENCRYPTED FILE-----\n"

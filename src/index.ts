@@ -25,6 +25,8 @@ import deleteGroup from "./commands/delete-group.js";
 import diff from "./commands/diff.js";
 import { select, isBack, BACK } from "./core/ui/prompt.js";
 import { menuSelect } from "./core/ui/menu.js";
+import { hasLocalEd25519Key } from "./core/ssh_keys.js";
+import { generateHelp } from "./core/platform.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -51,11 +53,15 @@ remove(program);
 deleteGroup(program);
 diff(program);
 
-program.hook("preAction", (_thisCommand, actionCommand) => {
+program.hook("preAction", async (_thisCommand, actionCommand) => {
   const name = actionCommand.name();
   if (name === "init" || name === program.name()) return;
   if (!fs.existsSync(path.join(process.cwd(), "nspt"))) {
     p.log.error("nspt not initialized. Run 'nspt init' first.");
+    process.exit(1);
+  }
+  if (!(await hasLocalEd25519Key())) {
+    p.log.error(generateHelp());
     process.exit(1);
   }
 });
@@ -81,6 +87,11 @@ const SECURITY_MENU: MenuOption[] = [
 ];
 
 async function runFlow(action: string): Promise<string | undefined> {
+  if (!(await hasLocalEd25519Key())) {
+    p.log.error(generateHelp());
+    return "error";
+  }
+
   switch (action) {
     case "initialize":
       return runInit();
@@ -155,6 +166,10 @@ async function runSubmenu(message: string, options: MenuOption[]): Promise<void>
 }
 
 program.action(async () => {
+  if (!(await hasLocalEd25519Key())) {
+    p.log.error(generateHelp());
+    process.exit(1);
+  }
   p.intro("Welcome to nspt");
   while (true) {
     const initialized = fs.existsSync(path.join(process.cwd(), "nspt"));

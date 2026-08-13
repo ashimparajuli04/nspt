@@ -6,6 +6,7 @@ import { homedir } from "node:os";
 import { createDecipheriv } from "node:crypto";
 import * as bcryptPbkdf from "bcrypt-pbkdf";
 import { fetchUserKeys } from "./github.js";
+import { generateHelp } from "./platform.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -470,6 +471,17 @@ export async function hasMatchingPrivateKey(githubKey: string): Promise<boolean>
 export async function findEncryptedLocalKeys(sshDir: string = SSH_DIR): Promise<SshPublicKey[]> {
   const keys = await discoverLocalKeys(sshDir);
   return keys.filter((k) => k.encrypted);
+}
+
+export async function hasLocalEd25519Key(sshDir: string = SSH_DIR): Promise<boolean> {
+  const keys = await discoverLocalKeys(sshDir);
+  return keys.some((k) => k.type === ED25519_KEY_TYPE);
+}
+
+/** Human-readable guidance when the machine has no usable ed25519 key, or null. */
+export async function noEd25519KeyHint(): Promise<string | null> {
+  if (await hasLocalEd25519Key()) return null;
+  return generateHelp();
 }
 
 /** Human-readable guidance when the user's local key is passphrase-protected, or null. */

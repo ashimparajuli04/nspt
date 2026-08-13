@@ -1,6 +1,7 @@
 import { runPreflight } from "../core/preflight.js";
 import { createFolder } from "../core/files.js";
 import { GithubRateLimitError } from "../core/github.js";
+import { noEd25519KeyHint } from "../core/ssh_keys.js";
 import * as p from "@clack/prompts";
 import path from "node:path";
 import { homedir } from "node:os";
@@ -30,11 +31,13 @@ export async function runInit(): Promise<InitResult> {
 
   if (!result) {
     s.stop("Preflight failed.");
+    const noKeyHint = await noEd25519KeyHint();
     p.log.error(
-      "Could not verify identity. Ensure you have:\n" +
-        "  - SSH access to GitHub configured\n" +
-        "  - At least one ssh-ed25519 key on GitHub\n" +
-        `  - A matching local SSH key in ${SSH_DIR}/`
+      noKeyHint ??
+        "Could not verify identity. Ensure you have:\n" +
+          "  - SSH access to GitHub configured\n" +
+          "  - At least one ssh-ed25519 key on GitHub\n" +
+          `  - A matching local SSH key in ${SSH_DIR}/`
     );
     return "error";
   }
