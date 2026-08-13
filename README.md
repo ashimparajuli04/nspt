@@ -211,9 +211,64 @@ You don't need to:
 ❌ paste a key into a config file
 ```
 
-The user's GitHub SSH public key is enough for `nspt` to identify a key that can be used to grant them access.
+However, there was an interesting cryptography problem to solve here.
 
-Their corresponding private key remains on their own machine.
+#### Ed25519 → X25519
+
+GitHub commonly provides **Ed25519** SSH keys. Ed25519 is primarily designed for **digital signatures and authentication**, while `age` uses **X25519** for public-key encryption.
+
+So I couldn't simply give an Ed25519 public key directly to `age`.
+
+Fortunately, Ed25519 and X25519 are mathematically related: both are based on the Curve25519 family. This allows the Ed25519 key material to be deterministically converted into the corresponding X25519 representation.
+
+The flow looks like:
+
+```text
+GitHub
+  │
+  ▼
+Ed25519 SSH public key
+  │
+  │ convert
+  ▼
+X25519 public key
+  │
+  ▼
+age recipient
+  │
+  ▼
+wrapped group key
+```
+
+The important part is that the user doesn't need another key pair.
+
+On the recipient's machine, the corresponding Ed25519 private key can be converted/derived into the X25519 private-key representation needed to decrypt the age-wrapped group key:
+
+```text
+             Bob's machine
+
+          Ed25519 private key
+                  │
+                  │ derive/convert
+                  ▼
+          X25519 private key
+                  │
+                  ▼
+           age decrypts
+                  │
+                  ▼
+           group file key
+                  │
+                  ▼
+              decrypt .env
+```
+
+So the same SSH identity that Bob already has on his machine can be used to access the group without requiring Bob to generate or manually exchange a separate encryption key.
+
+The private key itself **never needs to leave Bob's machine**. GitHub only provides the public key.
+
+This gives `nspt` a convenient way to discover a user's public key while keeping the actual decryption capability local to that user.
+
 
 ---
 

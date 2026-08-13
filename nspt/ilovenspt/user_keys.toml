@@ -2,18 +2,4 @@
 # Each entry maps a user's age public key to an age-wrapped group file key.
 key_version = 1
 
-[[users]]
-username = "ashimparajuli04"
 
-[[users.keys]]
-age = "age17vaqz6mzycc4v9ena00cc359w02gqdm792hpapnjzslz86gfe4yspxucv2"
-ssh = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC2u8OkP5IaRNw6mtUOWJqC1K05nmKrVc9o0xjUI5hDT"
-wrapped = "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB6QndOWEhYcjRJZjREUzBJ\nRG5mRmtBbkxkWXVSM2d2c0NUL3lhMHJOKzA4CmVSbkJRRXduZVZhUXFoUE1WRUZT\nUElDdHFEL0gxWmUyQWRKQzBXWmhrSWcKLS0tIDY0RFFFYkJCNEV3Zk8zUUdvcWpG\nRTVHa3JzWStKdmNkNDUvRUlESUtyeGcKCRqFizRv5Wkq67swCsnKzqPalgrn+pA4\n0kfGtRQEwNaOgPuomaVX9M/7xoOgOY97jchy7Ei7oIuBYZW61U34LQ==\n-----END AGE ENCRYPTED FILE-----\n"
-
-[[users]]
-username = "amezan-adhikari"
-
-[[users.keys]]
-age = "age1jft73x9f5ryr4s3qgmj6u8d27fyrkulkwyvz8ud8kp3qfzq2he3qhlzeck"
-ssh = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINhv4PaSfHwEzWwX42UbZPTsZZd2Ra+jz6YjpPGN1+x7"
-wrapped = "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBaSVJVREJHcVJIWnRHblY5\nUTlxMkduS2hDR21xS2JSVndvRVNiNnU0WTFzClpBK0pMMHJBa3creVJJQkFQelAy\nTnRUcXFrZDlwSnppeXkwME9Pb2VhTmsKLS0tIFBWQ24zYUlJOVlXYTlpUytkbGds\nV05CWmRrSWZ1SkhZclNLa09xN24wRmMKTf04DujcROB8HNO/HWOxNj5FZ+t1PktK\nL0i+ejCPx4RgMxo2Zdk65LhL5l3Ivmgfjq1muHJB9wyQfuKwjLDZdg==\n-----END AGE ENCRYPTED FILE-----\n"
