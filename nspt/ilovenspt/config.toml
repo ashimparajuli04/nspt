@@ -21,5 +21,9 @@ name = "src-env-9eabb446"
 path = "src/.env"
 
 [[files]]
+name = "src-commands-env-987af88e"
+path = "src/commands/.env"
+
+[[files]]
 name = "src-core-env-b99b7057"
 path = "src/core/.env"
