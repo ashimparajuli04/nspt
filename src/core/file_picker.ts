@@ -1,9 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as p from "@clack/prompts";
-import { autocomplete, BACK, isBack } from "./ui/prompt.js";
+import { autocomplete, text, BACK, isBack } from "./ui/prompt.js";
 
 const UP = "__nspt_up__";
+const MANUAL = "__nspt_manual__";
 
 export async function pickFile(
   root: string = process.cwd()
@@ -27,6 +28,7 @@ export async function pickFile(
 
     const options: { value: string; label: string }[] = [];
     if (stack.length > 0) options.push({ value: UP, label: ".. (go up)" });
+    if (stack.length === 0) options.push({ value: MANUAL, label: "✎ Type a path instead" });
     for (const entry of entries) {
       options.push({
         value: path.join(current, entry.name),
@@ -53,6 +55,17 @@ export async function pickFile(
       current = path.dirname(current);
       stack.pop();
       continue;
+    }
+
+    if (value === MANUAL) {
+      const typed = await text({
+        message: "Path to the file:",
+        placeholder: "e.g. frontend/.env",
+      });
+      if (isBack(typed)) continue;
+      const entered = typed.trim();
+      if (!entered) continue;
+      return entered;
     }
 
     if (fs.statSync(value).isDirectory()) {

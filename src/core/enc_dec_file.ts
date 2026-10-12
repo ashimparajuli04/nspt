@@ -84,12 +84,47 @@ export function decryptFile(key: Buffer, groupName: string, file: { name: string
   fs.writeFileSync(file.path, restored);
 }
 
+/**
+ * Cheap sanity check: can this key actually open the group's tracked files?
+ * A recovery wrap created before a rotation holds the *old* file key, so this
+ * is what tells us an entry is stale. Returns true when there is nothing on
+ * disk to check against (so we never reject a valid key just because the group
+ * has no encrypted files yet).
+ */
+export function fileKeyLooksValid(fileKeyHex: string, groupName: string): boolean {
+  const configPath = path.join(process.cwd(), "nspt", groupName, "config.toml");
+  let config: { files?: { name: string; path: string }[] };
+  try {
+    config = toml.parse(fs.readFileSync(configPath, "utf-8"));
+  } catch {
+    return true;
+  }
+  const files = Array.isArray(config.files) ? config.files : [];
+  let checked = 0;
+  for (const file of files) {
+    const encPath = path.join(process.cwd(), "nspt", groupName, "encfiles", `${file.name}.enc`);
+    if (!fs.existsSync(encPath)) continue;
+    checked += 1;
+    try {
+      decryptBytes(Buffer.from(fileKeyHex, "hex"), fs.readFileSync(encPath));
+      return true;
+    } catch {
+      // Wrong key for this file; keep looking.
+    }
+  }
+  return checked === 0;
+}
+
 export function rotateEncryptedFiles(oldKey: string, newKey: string, groupName: string) {
   const oldKeyBuffer = Buffer.from(oldKey, "hex");
   const newKeyBuffer = Buffer.from(newKey, "hex");
   const raw = fs.readFileSync(path.join(process.cwd(), "nspt", groupName, "config.toml"), "utf-8");
   const config = toml.parse(raw) as { files: { name: string; path: string }[] };
 
+  // Read + decrypt + re-encrypt everything in memory first, then write. That way
+  // a failure mid-way (corrupt file, wrong key) aborts before any file changes,
+  // so the group isn't left half-rotated.
+  const planned: { encPath: string; data: Buffer }[] = [];
   for (const file of config.files) {
     const encPath = path.join(process.cwd(), "nspt", groupName, "encfiles", `${file.name}.enc`);
     let data: Buffer;
@@ -99,7 +134,11 @@ export function rotateEncryptedFiles(oldKey: string, newKey: string, groupName: 
       continue;
     }
     const plaintext = decryptBytes(oldKeyBuffer, data);
-    fs.writeFileSync(encPath, encryptBytes(newKeyBuffer, plaintext));
+    planned.push({ encPath, data: encryptBytes(newKeyBuffer, plaintext) });
+  }
+
+  for (const item of planned) {
+    fs.writeFileSync(item.encPath, item.data);
   }
 }
 

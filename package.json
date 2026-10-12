@@ -1,6 +1,6 @@
 {
   "name": "@envee/nspt",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "description": "a secure way to share secrets among trusted peers",
   "keywords": [
     "nspt"

@@ -4,7 +4,7 @@ Encrypted .env and secret-file sharing for teams — synced through Git.
 
 
 End-to-end encrypted: secrets are encrypted and can only be opened by members you've explicitly added — not even the Git host can read the contents.
-No keys to exchange either: member keys are fetched automatically from GitHub and everything isdecrypted locally.
+No keys to exchange either: member keys are fetched automatically from GitHub and everything is decrypted locally.
 No public keys to copy. No secrets to paste into chat.
 
 ## 🎬 See It In Action (interactive terminal user interface)
@@ -20,7 +20,7 @@ No public keys to copy. No secrets to paste into chat.
 Once they're added, you can simply use Git to share the encrypted secrets:
 
 ```bash
-git push <groupName>
+git add . && git commit -m "encrypt tracked files" && git push
 ```
 
 Your teammate can then:
@@ -48,10 +48,17 @@ to open the interactive terminal interface.
 Use:
 
 * `↑` / `↓` — navigate
-* `Enter` — select
-* `Esc` — go back
+* `Enter` or `→` — select
+* `Esc`, `Ctrl+G`, or `←` — go back
 
-Every action available in the menu can also be performed through the CLI.
+`Ctrl+G` always works as "back", which is handy when your terminal swallows `Esc`
+(for example, Neovim's `:terminal`). Override it with the `NSPT_BACK_KEY`
+environment variable (`ctrl+g`, `left`, `q`, or a single character).
+
+Every action available in the menu can also be performed through the CLI. When only one group
+exists, commands use it automatically instead of asking you to pick it again.
+
+Pass `--yes` to any command to auto-confirm its prompts (useful for scripts and CI).
 
 ---
 
@@ -97,16 +104,22 @@ nspt pull <groupName>
 | `nspt init` | Initialize nspt and create your first group |
 | `nspt create-group <name>` | Create a new group |
 | `nspt delete-group [group]` | Permanently delete a group (confirm + type its name) |
-| `nspt track <group> <filepath>` | Track a file for encryption |
+| `nspt track [group] [filepath]` | Track a file for encryption |
 | `nspt track-env [group]` | Auto-track all `.env` files in the repo (skips `.env.example`) |
 | `nspt untrack [group]` | Untrack a file and delete its encrypted copy |
 | `nspt push [group]` | Encrypt all tracked files |
 | `nspt pull [group]` | Decrypt files to original paths |
 | `nspt diff [group]` | Preview how decrypting would update your tracked files |
+| `nspt status [group]` | Show tracked files and whether your working copies are in sync |
 | `nspt add [group] [username]` | Add a user to a group |
 | `nspt update-keys [group]` | Re-fetch GitHub keys for all members |
 | `nspt rotate-key [group]` | Rotate the group file key and re-wrap it for all members |
 | `nspt remove [group] [username]` | Remove a member and rotate the file key |
+| `nspt recover [group]` | Unlock a group with your recovery password (no SSH key needed) |
+| `nspt set-recovery-password` | Set (or change) the machine-wide recovery password |
+| `nspt change-recovery-password` | Rotate the password and re-wrap this repo's entries |
+| `nspt refresh-recovery [group]` | Re-seal this repo's recovery entries under the current file key |
+| `nspt clear-recovery-password` | Forget the recovery password on this machine |
 
 ---
 
@@ -448,6 +461,47 @@ Plaintext .env      → local
 That's the basic idea behind nspt:
 
 **Git handles synchronization; cryptography handles confidentiality.**
+
+---
+
+### 11. Recovery password (optional)
+
+Losing your SSH key used to mean losing access to every group you belong to. A
+**recovery password** gives you a second way in — and it is entirely optional;
+nspt never nags you to create one.
+
+You set it once per machine (Security → *Set recovery password*), and the same
+password is reused for every project and group, because nspt is installed
+globally.
+
+```text
+~/.config/nspt/recovery.json   (0600)   your password, machine-local
+nspt/<group>/recovery.toml     (git)    your password-wrapped group key
+```
+
+The moment you successfully unlock a group with your private key — proof that
+you are a member — nspt **silently** writes a password-wrapped copy of that
+group's file key into `recovery.toml`. On decrypt, nspt tries the stored
+password first, then your private keys, and only prompts for a password as a
+last resort. Because the password is kept locally, `nspt recover` works even on
+a fresh clone with no SSH key at all.
+
+Password rules: **8–30 characters**, with at least one uppercase, one lowercase,
+one number, and one special character.
+
+Things worth knowing:
+
+- **Rotation can make your entry stale.** Rotating the file key changes it, and
+  no one else knows your password, so other members' entries can't be refreshed
+  for them. Each entry heals automatically on that member's next key-based
+  unlock; `nspt status` flags a stale entry, and *Refresh recovery* fixes it on
+  demand. The rotating member's own entry is refreshed immediately.
+- **Changing the password is scoped to the current repo.** Other repos still
+  hold entries under the old password; nspt warns you and lists them, and you
+  re-run the change from inside each one.
+- **A committed wrap is brute-forceable offline.** Anyone with the repo can
+  attack the password, which is why the class rules above exist. Rotating the
+  file key also makes any previously-cracked wrap useless.
 
 </details>
 

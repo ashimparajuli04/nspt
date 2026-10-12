@@ -4,34 +4,26 @@ import * as p from "@clack/prompts";
 import { unwrapGroupKey } from "../core/unwrap.js";
 import { rotateGroupKey } from "../core/rotate.js";
 import { readUserKeys, listUsers } from "../core/user_keys.js";
-import { listGroups } from "../core/files.js";
 import { localKeyUnlockHint } from "../core/ssh_keys.js";
 import { getCachedUsername } from "../core/identity.js";
 import { passphraseProvider } from "./passphrase.js";
 import { select, confirm, isBack, withEscInert } from "../core/ui/prompt.js";
+import { chooseGroup } from "../core/ui/group.js";
 
 export type RemoveResult = "removed" | "cancelled" | "error";
 
 export async function runRemove(groupName?: string, username?: string): Promise<RemoveResult> {
   const groupProvided = Boolean(groupName);
   const usernameProvided = Boolean(username);
+  let groupAuto = false;
 
   while (true) {
     if (!groupName || !groupName.trim()) {
-      const groups = listGroups();
-      if (groups.length === 0) {
-        p.log.error("No groups yet. Create one with 'nspt create-group <name>' first.");
-        return "error";
-      }
-
-      const value = await select({
-        message: "Which group do you want to remove a user from?",
-        options: groups.map((group) => ({ value: group, label: group })),
-      });
-
-      if (isBack(value)) return "cancelled";
-
-      groupName = value;
+      const choice = await chooseGroup("Which group do you want to remove a user from?");
+      if (choice === null) return "error";
+      if (isBack(choice)) return "cancelled";
+      groupName = choice.group;
+      groupAuto = choice.auto;
     }
 
     const groupPath = path.join(process.cwd(), "nspt", groupName);
@@ -44,7 +36,7 @@ export async function runRemove(groupName?: string, username?: string): Promise<
     const s = p.spinner();
     s.start("Unwrapping group key...");
 
-    const fileKey = await unwrapGroupKey(groupName, { getPassphrase: passphraseProvider(s) });
+    const fileKey = await unwrapGroupKey(groupName, { getPassphrase: passphraseProvider(s), allowRecoveryWrite: true });
     if (!fileKey) {
       s.stop("Failed");
       const hint = await localKeyUnlockHint();
@@ -76,7 +68,7 @@ export async function runRemove(groupName?: string, username?: string): Promise<
           options: users.map((u) => ({ value: u, label: u })),
         });
         if (isBack(value)) {
-          if (groupProvided) return "cancelled";
+          if (groupProvided || groupAuto) return "cancelled";
           groupName = undefined;
           break;
         }
@@ -125,10 +117,7 @@ export async function runRemove(groupName?: string, username?: string): Promise<
         return "removed";
       } catch (err) {
         s.stop("Failed");
-        p.log.error(
-          `Removing "${username}" failed: ${(err as Error).message}. ` +
-            "No changes were written to the group."
-        );
+        p.log.error(`Removing "${username}" failed: ${(err as Error).message}`);
         return "error";
       }
     }

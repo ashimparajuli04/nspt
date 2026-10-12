@@ -41,6 +41,37 @@ export async function unsealFileKey(
   }
 }
 
+/**
+ * Wrap a group file key under a human passphrase using age's native scrypt
+ * mode. Unlike `sealToFileKey`, this needs no recipient: anyone who knows the
+ * passphrase can open it, which is what lets a keyless machine recover.
+ */
+export async function sealToPassphrase(
+  fileKeyHex: string,
+  password: string
+): Promise<string> {
+  const fileKey = hexToBytes(fileKeyHex);
+  const e = new age.Encrypter();
+  e.setPassphrase(password);
+  const encrypted = await e.encrypt(fileKey);
+  return age.armor.encode(encrypted);
+}
+
+export async function unsealWithPassphrase(
+  armoredWrapped: string,
+  password: string
+): Promise<string | null> {
+  try {
+    const encrypted = age.armor.decode(armoredWrapped);
+    const d = new age.Decrypter();
+    d.addPassphrase(password);
+    const fileKey = await d.decrypt(encrypted);
+    return bytesToHex(fileKey);
+  } catch {
+    return null;
+  }
+}
+
 export async function dryRun(): Promise<boolean> {
   try {
     const { identity, recipient } = await generateAgeIdentity();

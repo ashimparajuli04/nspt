@@ -91,6 +91,13 @@ export async function fetchUserKeys(
       `${GITHUB_WEB}/${encodeURIComponent(username)}.keys`,
       { headers: { "User-Agent": "nspt-cli" } }
     );
+    if (res.status === 403 || res.status === 429) {
+      const reset = res.headers.get("x-ratelimit-reset");
+      const when = reset ? new Date(Number(reset) * 1000).toLocaleTimeString() : "a little while";
+      throw new GithubRateLimitError(
+        `GitHub rate limit reached while fetching keys. Try again after ${when}.`
+      );
+    }
     if (!res.ok) return [];
     const keys = parseKeysBody(await res.text());
     writeCache(username, keys);

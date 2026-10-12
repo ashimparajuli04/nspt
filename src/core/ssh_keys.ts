@@ -394,6 +394,19 @@ async function agentKeys(): Promise<SshPublicKey[]> {
 }
 
 /**
+ * Process-local cache keyed only for the real SSH dir. The default `~/.ssh`
+ * scan (which also spawns `ssh-add -L`) runs several times per command, so we
+ * memoize it. Custom dirs (used by tests) always re-read, since they can be
+ * mutated between calls. Call `clearLocalKeyCache()` after changing keys on
+ * disk in a long-lived process.
+ */
+let cachedLocalKeys: SshPublicKey[] | null = null;
+
+export function clearLocalKeyCache(): void {
+  cachedLocalKeys = null;
+}
+
+/**
  * Scan local SSH keys: every regular file in the SSH dir is inspected — `.pub`
  * files are read directly, everything else is parsed as an OpenSSH private key
  * (the embedded public key is extracted, no subprocesses involved). Keys loaded
@@ -401,6 +414,9 @@ async function agentKeys(): Promise<SshPublicKey[]> {
  * present are returned.
  */
 export async function discoverLocalKeys(sshDir: string = SSH_DIR): Promise<SshPublicKey[]> {
+  const useCache = sshDir === SSH_DIR;
+  if (useCache && cachedLocalKeys) return cachedLocalKeys;
+
   const keys = new Map<string, SshPublicKey>();
   const add = (k: SshPublicKey | null) => {
     if (k && k.hasPrivate && !keys.has(k.key)) keys.set(k.key, k);
@@ -428,7 +444,9 @@ export async function discoverLocalKeys(sshDir: string = SSH_DIR): Promise<SshPu
     add(agentKey);
   }
 
-  return [...keys.values()];
+  const result = [...keys.values()];
+  if (useCache) cachedLocalKeys = result;
+  return result;
 }
 
 // --- matching ---

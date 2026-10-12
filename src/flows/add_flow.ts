@@ -5,11 +5,11 @@ import { unwrapGroupKey } from "../core/unwrap.js";
 import { sealToFileKey } from "../core/age_keys.js";
 import { fetchUserKeys, GithubRateLimitError } from "../core/github.js";
 import { readUserKeys, writeUserKeys, addUserKey } from "../core/user_keys.js";
-import { listGroups } from "../core/files.js";
 import { sshPubLineToRecipient } from "../core/ssh_to_age.js";
 import { localKeyUnlockHint } from "../core/ssh_keys.js";
 import { passphraseProvider } from "./passphrase.js";
-import { select, text, isBack } from "../core/ui/prompt.js";
+import { text, isBack } from "../core/ui/prompt.js";
+import { chooseGroup } from "../core/ui/group.js";
 
 export type AddResult = "added" | "cancelled" | "error";
 
@@ -18,20 +18,15 @@ export async function runAdd(
   inviteeUsername?: string
 ): Promise<AddResult> {
   const groupProvided = Boolean(groupName);
+  let groupAuto = false;
 
   while (true) {
     if (!groupName || !groupName.trim()) {
-      const groups = listGroups();
-      if (groups.length === 0) {
-        p.log.error("No groups yet.");
-        return "error";
-      }
-      const value = await select({
-        message: "Which group?",
-        options: groups.map((g) => ({ value: g, label: g })),
-      });
-      if (isBack(value)) return "cancelled";
-      groupName = value;
+      const choice = await chooseGroup("Which group?");
+      if (choice === null) return "error";
+      if (isBack(choice)) return "cancelled";
+      groupName = choice.group;
+      groupAuto = choice.auto;
     }
 
     const groupPath = path.join(process.cwd(), "nspt", groupName);
@@ -46,7 +41,7 @@ export async function runAdd(
         placeholder: "e.g. alice04",
       });
       if (isBack(value)) {
-        if (groupProvided) return "cancelled";
+        if (groupProvided || groupAuto) return "cancelled";
         groupName = undefined;
         continue;
       }
@@ -56,7 +51,7 @@ export async function runAdd(
     const s = p.spinner();
     s.start("Unwrapping group key...");
 
-    const fileKey = await unwrapGroupKey(groupName, { getPassphrase: passphraseProvider(s) });
+    const fileKey = await unwrapGroupKey(groupName, { getPassphrase: passphraseProvider(s), allowRecoveryWrite: true });
     if (!fileKey) {
       s.stop("Failed");
       const hint = await localKeyUnlockHint();

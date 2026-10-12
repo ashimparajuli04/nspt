@@ -1,11 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as p from "@clack/prompts";
-import { addFileToGroupConfig, deriveName, listGroups } from "../core/files.js";
+import { addFileToGroupConfig, deriveName } from "../core/files.js";
 import { localKeyUnlockHint } from "../core/ssh_keys.js";
-import { verifyGroupMembership } from "../core/unwrap.js";
-import { passphraseProvider } from "./passphrase.js";
-import { select, confirm, isBack } from "../core/ui/prompt.js";
+import { isGroupMember } from "../core/unwrap.js";
+import { isBack, multiselect } from "../core/ui/prompt.js";
+import { chooseGroup } from "../core/ui/group.js";
 
 export type TrackEnvResult = "tracked" | "cancelled" | "error";
 
@@ -44,23 +44,15 @@ export function findEnvFiles(root: string = process.cwd()): string[] {
 
 export async function runTrackEnv(groupName?: string): Promise<TrackEnvResult> {
   const groupProvided = Boolean(groupName);
+  let groupAuto = false;
 
   while (true) {
     if (!groupName || !groupName.trim()) {
-      const groups = listGroups();
-      if (groups.length === 0) {
-        p.log.error("No groups yet. Create one with 'nspt create-group <name>' first.");
-        return "error";
-      }
-
-      const value = await select({
-        message: "Which group do you want to track .env files in?",
-        options: groups.map((group) => ({ value: group, label: group })),
-      });
-
-      if (isBack(value)) return "cancelled";
-
-      groupName = value;
+      const choice = await chooseGroup("Which group do you want to track .env files in?");
+      if (choice === null) return "error";
+      if (isBack(choice)) return "cancelled";
+      groupName = choice.group;
+      groupAuto = choice.auto;
     }
 
     const configPath = path.join(process.cwd(), "nspt", groupName, "config.toml");
@@ -69,11 +61,7 @@ export async function runTrackEnv(groupName?: string): Promise<TrackEnvResult> {
       return "error";
     }
 
-    const s = p.spinner();
-    s.start("Verifying group membership...");
-    const isMember = await verifyGroupMembership(groupName, { getPassphrase: passphraseProvider(s) });
-    if (!isMember) {
-      s.stop("Failed");
+    if (!(await isGroupMember(groupName))) {
       const hint = await localKeyUnlockHint();
       p.log.error(
         hint
@@ -82,7 +70,6 @@ export async function runTrackEnv(groupName?: string): Promise<TrackEnvResult> {
       );
       return "error";
     }
-    s.clear();
 
     const envFiles = findEnvFiles();
     if (envFiles.length === 0) {
@@ -90,24 +77,26 @@ export async function runTrackEnv(groupName?: string): Promise<TrackEnvResult> {
       return "error";
     }
 
-    p.log.info(`Found ${envFiles.length} .env file(s):`);
-    for (const file of envFiles) {
-      const relative = path.relative(process.cwd(), file).split(path.sep).join("/");
-      p.log.info(`  ${relative}`);
-    }
+    const relativeOf = (file: string) =>
+      path.relative(process.cwd(), file).split(path.sep).join("/");
 
-    const confirmed = await confirm({
-      message: `Track these ${envFiles.length} .env file(s) in "${groupName}"?`,
-      initialValue: true,
+    const selected = await multiselect({
+      message: `Select the .env files to track in "${groupName}":`,
+      options: envFiles.map((file) => {
+        const relative = relativeOf(file);
+        return { value: relative, label: relative };
+      }),
+      initialValues: envFiles.map(relativeOf),
+      required: false,
     });
 
-    if (isBack(confirmed)) {
-      if (groupProvided) return "cancelled";
+    if (isBack(selected)) {
+      if (groupProvided || groupAuto) return "cancelled";
       groupName = undefined;
       continue;
     }
 
-    if (!confirmed) {
+    if (selected.length === 0) {
       p.log.info("Nothing tracked.");
       return "cancelled";
     }
@@ -115,8 +104,7 @@ export async function runTrackEnv(groupName?: string): Promise<TrackEnvResult> {
     const addedPaths: string[] = [];
     const duplicatePaths: string[] = [];
 
-    for (const file of envFiles) {
-      const relative = path.relative(process.cwd(), file).split(path.sep).join("/");
+    for (const relative of selected) {
       const name = deriveName(relative);
       const added = addFileToGroupConfig(groupName, { name, path: relative });
       if (added) {
@@ -135,7 +123,7 @@ export async function runTrackEnv(groupName?: string): Promise<TrackEnvResult> {
     }
 
     if (addedPaths.length === 0 && duplicatePaths.length > 0) {
-      p.log.error("All .env files in this repo are already tracked.");
+      p.log.error("All selected .env files are already tracked.");
       return "error";
     }
 

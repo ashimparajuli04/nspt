@@ -53,11 +53,11 @@ test("group round trip: ssh identity -> user_keys.toml -> unwrapGroupKey", async
     };
     writeUserKeys(groupPath, data);
 
-    const unwrapped = await unwrapGroupKey(groupName, { identities: [identity] });
+    const unwrapped = await unwrapGroupKey(groupName, { identities: [identity], storedPassword: null });
     assert.equal(unwrapped, fileKeyHex);
 
-    assert.equal(await verifyGroupMembership(groupName, { identities: [identity] }), true);
-    assert.equal(await verifyGroupMembership(groupName, { identities: [sshSeedToIdentity(makeKeypair().seed)] }), false);
+    assert.equal(await verifyGroupMembership(groupName, { identities: [identity], storedPassword: null }), true);
+    assert.equal(await verifyGroupMembership(groupName, { identities: [sshSeedToIdentity(makeKeypair().seed)], storedPassword: null }), false);
   } finally {
     process.chdir(prevCwd);
     fs.rmSync(dir, { recursive: true, force: true });
@@ -83,7 +83,7 @@ test("unwrapGroupKey: returns null when identity cannot unseal any wrap", async 
       users: [{ username: "alice", keys: [{ age: recipient, ssh: "ssh-ed25519 alice", wrapped }] }],
     });
 
-    assert.equal(await unwrapGroupKey(groupName, { identities: [sshSeedToIdentity(bob.seed)] }), null);
+    assert.equal(await unwrapGroupKey(groupName, { identities: [sshSeedToIdentity(bob.seed)], storedPassword: null }), null);
   } finally {
     process.chdir(prevCwd);
     fs.rmSync(dir, { recursive: true, force: true });

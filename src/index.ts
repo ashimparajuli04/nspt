@@ -23,7 +23,13 @@ import rotateKey from "./commands/rotate-key.js";
 import remove from "./commands/remove.js";
 import deleteGroup from "./commands/delete-group.js";
 import diff from "./commands/diff.js";
-import { select, isBack, BACK } from "./core/ui/prompt.js";
+import status from "./commands/status.js";
+import setRecoveryPassword from "./commands/set-recovery-password.js";
+import changeRecoveryPassword from "./commands/change-recovery-password.js";
+import clearRecoveryPassword from "./commands/clear-recovery-password.js";
+import refreshRecovery from "./commands/refresh-recovery.js";
+import recover from "./commands/recover.js";
+import { select, isBack, BACK, setAssumeYes } from "./core/ui/prompt.js";
 import { menuSelect } from "./core/ui/menu.js";
 import { hasLocalEd25519Key } from "./core/ssh_keys.js";
 import { generateHelp } from "./core/platform.js";
@@ -37,6 +43,7 @@ program
   .name("nspt")
   .description("Secure, serverless .env sync for teams")
   .version(version)
+  .option("-y, --yes", "Assume yes for all confirmation prompts")
   .showHelpAfterError();
 
 init(program);
@@ -52,16 +59,39 @@ rotateKey(program);
 remove(program);
 deleteGroup(program);
 diff(program);
+status(program);
+setRecoveryPassword(program);
+changeRecoveryPassword(program);
+clearRecoveryPassword(program);
+refreshRecovery(program);
+recover(program);
+
+// Let `--yes` be written either before or after the subcommand
+// (`nspt -y remove` and `nspt remove -y` both work).
+for (const cmd of program.commands) {
+  cmd.option("-y, --yes", "Assume yes for all confirmation prompts");
+}
+
+// Commands that can still make progress on a machine without an ssh-ed25519
+// key: they may succeed by unwrapping with the stored recovery password. Every
+// other command genuinely needs membership, so it stays gated.
+const RECOVERY_CAPABLE_COMMANDS = new Set(["init", "recover", "pull", "diff", "status"]);
+const RECOVERY_CAPABLE_ACTIONS = new Set(["recover", "pull", "diff", "status"]);
 
 program.hook("preAction", async (_thisCommand, actionCommand) => {
+  if (_thisCommand.opts().yes === true || actionCommand.opts().yes === true) {
+    setAssumeYes(true);
+  }
   const name = actionCommand.name();
   if (name === "init" || name === program.name()) return;
   if (!fs.existsSync(path.join(process.cwd(), "nspt"))) {
     p.log.error("nspt not initialized. Run 'nspt init' first.");
     process.exit(1);
   }
+  if (RECOVERY_CAPABLE_COMMANDS.has(name)) return;
   if (!(await hasLocalEd25519Key())) {
     p.log.error(generateHelp());
+    p.log.info("Have a recovery password? Run 'nspt recover <group>' — no SSH key required.");
     process.exit(1);
   }
 });
@@ -84,10 +114,13 @@ const GROUP_MENU: MenuOption[] = [
 
 const SECURITY_MENU: MenuOption[] = [
   { value: "rotate_key", label: "Rotate the file key" },
+  { value: "set_recovery_password", label: "Set recovery password" },
+  { value: "refresh_recovery", label: "Refresh recovery entry" },
+  { value: "clear_recovery_password", label: "Clear recovery password" },
 ];
 
 async function runFlow(action: string): Promise<string | undefined> {
-  if (!(await hasLocalEd25519Key())) {
+  if (!RECOVERY_CAPABLE_ACTIONS.has(action) && !(await hasLocalEd25519Key())) {
     p.log.error(generateHelp());
     return "error";
   }
@@ -119,6 +152,30 @@ async function runFlow(action: string): Promise<string | undefined> {
       const { runDiff } = await import("./flows/diff_flow.js");
       return runDiff();
     }
+    case "status": {
+      const { runStatus } = await import("./flows/status_flow.js");
+      return runStatus();
+    }
+    case "recover": {
+      const { runRecover } = await import("./flows/recover_flow.js");
+      return runRecover();
+    }
+    case "set_recovery_password": {
+      const { runSetRecoveryPassword } = await import("./flows/recovery_flow.js");
+      return runSetRecoveryPassword();
+    }
+    case "change_recovery_password": {
+      const { runChangeRecoveryPassword } = await import("./flows/recovery_flow.js");
+      return runChangeRecoveryPassword();
+    }
+    case "refresh_recovery": {
+      const { runRefreshRecoveryPassword } = await import("./flows/recovery_flow.js");
+      return runRefreshRecoveryPassword();
+    }
+    case "clear_recovery_password": {
+      const { runClearRecoveryPassword } = await import("./flows/recovery_flow.js");
+      return runClearRecoveryPassword();
+    }
     case "add": {
       const { runAdd } = await import("./flows/add_flow.js");
       return runAdd();
@@ -147,8 +204,12 @@ async function runFlowWithPause(action: string): Promise<void> {
     result = await runFlow(action);
   } catch (err) {
     p.log.error(`Unexpected error: ${(err as Error).message}`);
+    await pressAnyKey();
+    return;
   }
-  if (result !== "cancelled") {
+  // Only stop on failures the user needs to read; successful actions return
+  // straight to the menu so a push/pull cycle doesn't require extra keypresses.
+  if (result === "error") {
     await pressAnyKey();
   }
 }
@@ -168,6 +229,7 @@ async function runSubmenu(message: string, options: MenuOption[]): Promise<void>
 program.action(async () => {
   if (!(await hasLocalEd25519Key())) {
     p.log.error(generateHelp());
+    p.log.info("Have a recovery password? Run 'nspt recover <group>' — no SSH key required.");
     process.exit(1);
   }
   p.intro("Welcome to nspt");
@@ -181,7 +243,9 @@ program.action(async () => {
           ? [
               { value: "push", label: "Push" },
               { value: "pull", label: "Pull" },
+              { value: "recover", label: "Recover with password" },
               { value: "diff", label: "Preview decrypt" },
+              { value: "status", label: "Status" },
               { value: "manage_files", label: "Manage Files" },
               { value: "manage_group", label: "Manage Group" },
               { value: "security", label: "Security" },

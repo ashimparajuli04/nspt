@@ -1,31 +1,24 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as p from "@clack/prompts";
-import { listGroups, deleteGroup } from "../core/files.js";
+import { deleteGroup } from "../core/files.js";
 import { removeStoredIdentity } from "../core/age_store.js";
-import { select, confirm, text, isBack } from "../core/ui/prompt.js";
+import { confirm, text, isBack } from "../core/ui/prompt.js";
+import { chooseGroup } from "../core/ui/group.js";
 
 export type DeleteGroupResult = "deleted" | "cancelled" | "error";
 
 export async function runDeleteGroup(groupName?: string): Promise<DeleteGroupResult> {
   const groupProvided = Boolean(groupName);
+  let groupAuto = false;
 
   while (true) {
     if (!groupName || !groupName.trim()) {
-      const groups = listGroups();
-      if (groups.length === 0) {
-        p.log.error("No groups yet.");
-        return "error";
-      }
-
-      const value = await select({
-        message: "Which group do you want to delete?",
-        options: groups.map((group) => ({ value: group, label: group })),
-      });
-
-      if (isBack(value)) return "cancelled";
-
-      groupName = value;
+      const choice = await chooseGroup("Which group do you want to delete?");
+      if (choice === null) return "error";
+      if (isBack(choice)) return "cancelled";
+      groupName = choice.group;
+      groupAuto = choice.auto;
     }
 
     const groupPath = path.join(process.cwd(), "nspt", groupName);
@@ -43,7 +36,7 @@ export async function runDeleteGroup(groupName?: string): Promise<DeleteGroupRes
       });
 
       if (isBack(confirmed)) {
-        if (groupProvided) return "cancelled";
+        if (groupProvided || groupAuto) return "cancelled";
         groupName = undefined;
         break;
       }

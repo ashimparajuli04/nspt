@@ -74,11 +74,25 @@ export function getCachedUsername(): string | null {
   return readCachedIdentity()?.githubUsername ?? null;
 }
 
-export async function getVerifiedUsername(): Promise<string | null> {
+export interface VerifyUsernameOptions {
+  /** Force a fresh network check even when a cached username exists. */
+  force?: boolean;
+}
+
+export async function getVerifiedUsername(
+  options: VerifyUsernameOptions = {}
+): Promise<string | null> {
+  if (!options.force) {
+    const cached = getCachedUsername();
+    if (cached) return cached;
+  }
+
   const detected = await fromSshBanner();
   if (detected) {
     saveIdentity(detected);
     return detected;
   }
-  return null;
+  // Fall back to a previously verified identity when the network check fails
+  // (e.g. offline), instead of making the user re-authenticate.
+  return getCachedUsername();
 }

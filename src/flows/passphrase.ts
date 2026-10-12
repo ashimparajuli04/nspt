@@ -29,6 +29,15 @@ export function passphraseProvider(
   return (keyPath) => promptForPassphrase(keyPath, spinner, "Unwrapping group key...");
 }
 
+/** Last-resort prompt, shown only after stored passwords and keys both fail. */
+export async function promptRecoveryPassword(): Promise<string | null> {
+  const value = await password({
+    message: "Enter recovery password:",
+  });
+  if (isBack(value)) return null;
+  return value;
+}
+
 export async function promptSshIdentity(
   keyPath: string,
   spinner: ReturnType<typeof p.spinner>

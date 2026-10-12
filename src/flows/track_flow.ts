@@ -1,34 +1,26 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as p from "@clack/prompts";
-import { addFileToGroupConfig, deriveName, isPathWithinRoot, listGroups } from "../core/files.js";
+import { addFileToGroupConfig, deriveName, isPathWithinRoot } from "../core/files.js";
 import { pickFile } from "../core/file_picker.js";
 import { localKeyUnlockHint } from "../core/ssh_keys.js";
-import { verifyGroupMembership } from "../core/unwrap.js";
-import { passphraseProvider } from "./passphrase.js";
-import { select, isBack } from "../core/ui/prompt.js";
+import { isGroupMember } from "../core/unwrap.js";
+import { isBack } from "../core/ui/prompt.js";
+import { chooseGroup } from "../core/ui/group.js";
 
 export type TrackResult = "tracked" | "cancelled" | "error";
 
 export async function runTrack(groupName?: string, filepath?: string): Promise<TrackResult> {
   const groupProvided = Boolean(groupName);
+  let groupAuto = false;
 
   while (true) {
     if (!groupName || !groupName.trim()) {
-      const groups = listGroups();
-      if (groups.length === 0) {
-        p.log.error("No groups yet. Create one with 'nspt create-group <name>' first.");
-        return "error";
-      }
-
-      const value = await select({
-        message: "Which group do you want to track a file in?",
-        options: groups.map((group) => ({ value: group, label: group })),
-      });
-
-      if (isBack(value)) return "cancelled";
-
-      groupName = value;
+      const choice = await chooseGroup("Which group do you want to track a file in?");
+      if (choice === null) return "error";
+      if (isBack(choice)) return "cancelled";
+      groupName = choice.group;
+      groupAuto = choice.auto;
     }
 
     const configPath = path.join(process.cwd(), "nspt", groupName, "config.toml");
@@ -37,11 +29,7 @@ export async function runTrack(groupName?: string, filepath?: string): Promise<T
       return "error";
     }
 
-    const s = p.spinner();
-    s.start("Verifying group membership...");
-    const isMember = await verifyGroupMembership(groupName, { getPassphrase: passphraseProvider(s) });
-    if (!isMember) {
-      s.stop("Failed");
+    if (!(await isGroupMember(groupName))) {
       const hint = await localKeyUnlockHint();
       p.log.error(
         hint
@@ -50,14 +38,13 @@ export async function runTrack(groupName?: string, filepath?: string): Promise<T
       );
       return "error";
     }
-    s.clear();
 
     while (true) {
       if (!filepath || !filepath.trim()) {
         const value = await pickFile();
 
         if (isBack(value)) {
-          if (groupProvided) return "cancelled";
+          if (groupProvided || groupAuto) return "cancelled";
           groupName = undefined;
           break;
         }

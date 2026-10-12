@@ -3,11 +3,12 @@ import * as path from "node:path";
 import * as p from "@clack/prompts";
 import { readDecryptedFile } from "../core/enc_dec_file.js";
 import { unwrapGroupKey } from "../core/unwrap.js";
-import { listGroups, listTrackedFiles } from "../core/files.js";
-import { renderUnifiedDiff, createDiffStyler } from "../core/diff.js";
+import { listTrackedFiles } from "../core/files.js";
+import { renderUnifiedDiff, createDiffStyler, diffSummary } from "../core/diff.js";
 import { localKeyUnlockHint } from "../core/ssh_keys.js";
 import { passphraseProvider } from "./passphrase.js";
 import { select, isBack } from "../core/ui/prompt.js";
+import { chooseGroup } from "../core/ui/group.js";
 
 export type DiffResult = "shown" | "cancelled" | "error";
 
@@ -15,23 +16,15 @@ const ALL_FILES = "__all__";
 
 export async function runDiff(groupName?: string): Promise<DiffResult> {
   const groupProvided = Boolean(groupName);
+  let groupAuto = false;
 
   while (true) {
     if (!groupName || !groupName.trim()) {
-      const groups = listGroups();
-      if (groups.length === 0) {
-        p.log.error("No groups yet. Create one with 'nspt create-group <name>' first.");
-        return "error";
-      }
-
-      const value = await select({
-        message: "Which group do you want to preview a decrypt for?",
-        options: groups.map((group) => ({ value: group, label: group })),
-      });
-
-      if (isBack(value)) return "cancelled";
-
-      groupName = value;
+      const choice = await chooseGroup("Which group do you want to preview a decrypt for?");
+      if (choice === null) return "error";
+      if (isBack(choice)) return "cancelled";
+      groupName = choice.group;
+      groupAuto = choice.auto;
     }
 
     const groupPath = path.join(process.cwd(), "nspt", groupName);
@@ -72,7 +65,7 @@ export async function runDiff(groupName?: string): Promise<DiffResult> {
     });
 
     if (isBack(value)) {
-      if (groupProvided) return "cancelled";
+      if (groupProvided || groupAuto) return "cancelled";
       groupName = undefined;
       continue;
     }
@@ -97,8 +90,10 @@ export async function runDiff(groupName?: string): Promise<DiffResult> {
       }
 
       const out = renderUnifiedDiff(file.path, file.path, local, remote);
+      const { additions, deletions } = diffSummary(local, remote);
+
       if (out === null) {
-        if (!multiple) console.log("No differences");
+        if (!multiple) p.log.info(`${file.path}: up to date`);
         continue;
       }
 
@@ -106,6 +101,7 @@ export async function runDiff(groupName?: string): Promise<DiffResult> {
         console.log(`\n${createDiffStyler().fileHeader(`=== ${file.path} ===`)}`);
       }
       console.log(out);
+      p.log.info(`${file.path}: ${additions} addition(s), ${deletions} deletion(s)`);
     }
 
     return "shown";

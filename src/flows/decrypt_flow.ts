@@ -3,29 +3,19 @@ import * as path from "node:path";
 import * as p from "@clack/prompts";
 import { decryptAllFiles } from "../core/enc_dec_file.js";
 import { unwrapGroupKey } from "../core/unwrap.js";
-import { listGroups } from "../core/files.js";
 import { localKeyUnlockHint } from "../core/ssh_keys.js";
-import { passphraseProvider } from "./passphrase.js";
-import { select, isBack } from "../core/ui/prompt.js";
+import { passphraseProvider, promptRecoveryPassword } from "./passphrase.js";
+import { isBack } from "../core/ui/prompt.js";
+import { chooseGroup } from "../core/ui/group.js";
 
 export type DecryptResult = "decrypted" | "cancelled" | "error";
 
 export async function runDecrypt(groupName?: string): Promise<DecryptResult> {
   if (!groupName || !groupName.trim()) {
-    const groups = listGroups();
-    if (groups.length === 0) {
-      p.log.error("No groups yet. Create one with 'nspt create-group <name>' first.");
-      return "error";
-    }
-
-    const value = await select({
-      message: "Which group do you want to decrypt files for?",
-      options: groups.map((group) => ({ value: group, label: group })),
-    });
-
-    if (isBack(value)) return "cancelled";
-
-    groupName = value;
+    const choice = await chooseGroup("Which group do you want to decrypt files for?");
+    if (choice === null) return "error";
+    if (isBack(choice)) return "cancelled";
+    groupName = choice.group;
   }
 
   const groupPath = path.join(process.cwd(), "nspt", groupName);
@@ -37,7 +27,11 @@ export async function runDecrypt(groupName?: string): Promise<DecryptResult> {
   const s = p.spinner();
   s.start("Unwrapping group key...");
 
-  const fileKey = await unwrapGroupKey(groupName, { getPassphrase: passphraseProvider(s) });
+  const fileKey = await unwrapGroupKey(groupName, {
+    getPassphrase: passphraseProvider(s),
+    getRecoveryPassword: promptRecoveryPassword,
+    allowRecoveryWrite: true,
+  });
   if (!fileKey) {
     s.stop("Failed");
     const hint = await localKeyUnlockHint();

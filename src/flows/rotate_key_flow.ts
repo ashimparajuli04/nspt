@@ -1,34 +1,26 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as p from "@clack/prompts";
-import { unwrapGroupKey } from "../core/unwrap.js";
+import { unwrapGroupKeyDetailed } from "../core/unwrap.js";
 import { rotateGroupKey } from "../core/rotate.js";
-import { listGroups } from "../core/files.js";
 import { localKeyUnlockHint } from "../core/ssh_keys.js";
 import { passphraseProvider } from "./passphrase.js";
-import { select, confirm, isBack, withEscInert } from "../core/ui/prompt.js";
+import { confirm, isBack, withEscInert } from "../core/ui/prompt.js";
+import { chooseGroup } from "../core/ui/group.js";
 
 export type RotateKeyResult = "rotated" | "cancelled" | "error";
 
 export async function runRotateKey(groupName?: string): Promise<RotateKeyResult> {
   const groupProvided = Boolean(groupName);
+  let groupAuto = false;
 
   while (true) {
     if (!groupName || !groupName.trim()) {
-      const groups = listGroups();
-      if (groups.length === 0) {
-        p.log.error("No groups yet. Create one with 'nspt create-group <name>' first.");
-        return "error";
-      }
-
-      const value = await select({
-        message: "Which group do you want to rotate the file key for?",
-        options: groups.map((group) => ({ value: group, label: group })),
-      });
-
-      if (isBack(value)) return "cancelled";
-
-      groupName = value;
+      const choice = await chooseGroup("Which group do you want to rotate the file key for?");
+      if (choice === null) return "error";
+      if (isBack(choice)) return "cancelled";
+      groupName = choice.group;
+      groupAuto = choice.auto;
     }
 
     const groupPath = path.join(process.cwd(), "nspt", groupName);
@@ -45,7 +37,7 @@ export async function runRotateKey(groupName?: string): Promise<RotateKeyResult>
     });
 
     if (isBack(confirmed)) {
-      if (groupProvided) return "cancelled";
+      if (groupProvided || groupAuto) return "cancelled";
       groupName = undefined;
       continue;
     }
@@ -58,7 +50,8 @@ export async function runRotateKey(groupName?: string): Promise<RotateKeyResult>
     const s = p.spinner();
     s.start("Unwrapping group key...");
 
-    const oldFileKey = await unwrapGroupKey(groupName, { getPassphrase: passphraseProvider(s) });
+    const unlocked = await unwrapGroupKeyDetailed(groupName, { getPassphrase: passphraseProvider(s), allowRecoveryWrite: true });
+    const oldFileKey = unlocked?.fileKey;
     if (!oldFileKey) {
       s.stop("Failed");
       const hint = await localKeyUnlockHint();
@@ -78,7 +71,7 @@ export async function runRotateKey(groupName?: string): Promise<RotateKeyResult>
       await withEscInert(async () => {
         await rotateGroupKey(activeGroup, oldFileKey, (msg) => {
           s.message(msg);
-        });
+        }, [], unlocked?.username);
       });
       s.stop("File key rotated");
       p.log.success(`Rotated the file key for group "${groupName}"`);

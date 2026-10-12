@@ -1,0 +1,9 @@
+# nspt recovery wraps — do not edit manually
+# Each entry holds the group file key sealed under a member's recovery password.
+# Rotation makes these stale until the member's next key-based unlock.
+version = 1
+
+[[recovery]]
+username = "ashimparajuli04"
+fingerprint = "f1b89053482669da20040c20a53ef79c8d13b1394fcd517cc7f74c71e5593406"
+wrapped = "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IHNjcnlwdCBBMWo2RDlZaEpGSm55dE10\nZm84NjFBIDE4Cnc2UVI5WWU2UllPdWs4ejlteUV4cU9sVEhkY0ZkMVE2aHNmY0tm\ndDhra00KLS0tIGhndlRLUUVaRkl0ZUpqRUFkL1BKLzlQMHVPWUtmdFQ0SDMrWWpP\nblpkeGsKF1MqlhBliRd0pEs3z6jBgX9fNf7e3EmGDF1vkaHZOJvVQHVz1aE0Pigj\ntubQ+3C67jGQ8sM0cwdCFENMEh85wA==\n-----END AGE ENCRYPTED FILE-----\n"

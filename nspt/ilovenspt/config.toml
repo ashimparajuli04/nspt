@@ -15,4 +15,7 @@
 # path = "./src/.env"
 
 group = "ilovenspt"
-files = []
+
+[[files]]
+name = "env-e9cbb022"
+path = ".env"
